@@ -12,9 +12,10 @@ Stack : React 19 + TypeScript + Vite + Tailwind CSS 4 (frontend), Node.js + Expr
 ## Démarrage
 
 1. Copier `.env.example` vers `.env`.
-2. Modifier au minimum `POSTGRES_PASSWORD` (et la valeur correspondante dans `DATABASE_URL`), `ADMIN_EMAIL`/`ADMIN_PASSWORD`, et `CORS_ORIGIN` si l'application n'est pas servie sur `http://localhost:8080`.
-3. (Optionnel) Renseigner `SMTP_*` pour activer l'envoi du code de vérification par email à l'inscription d'une nouvelle école.
-4. Lancer :
+2. Modifier au minimum `POSTGRES_PASSWORD` (et la valeur correspondante dans `DATABASE_URL`), et `CORS_ORIGIN` si l'application n'est pas servie sur `http://localhost:8080`.
+3. Renseigner `ADMIN_EMAIL`/`ADMIN_PASSWORD` — **obligatoires** lors de la toute première installation (base de données vide) : ils servent à créer le premier compte administrateur. Il n'existe aucun identifiant par défaut ; sans ces deux variables, le démarrage échoue explicitement au lieu de créer un compte avec un mot de passe prévisible. Sans effet sur une installation déjà existante.
+4. (Optionnel) Renseigner `SMTP_*` pour activer l'envoi du code de vérification par email à l'inscription d'une nouvelle école.
+5. Lancer :
 
 ```powershell
 docker compose up -d --build

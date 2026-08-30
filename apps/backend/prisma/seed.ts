@@ -28,8 +28,14 @@ try {
     // single-tenant data — this block never runs again, so it can't clobber real schools' data.
     const schoolCount = await prisma.school.count();
     if (schoolCount === 0) {
-        const email = (process.env.ADMIN_EMAIL ?? 'admin@ecole-garden.local').toLowerCase();
-        const password = process.env.ADMIN_PASSWORD ?? 'change-this-password';
+        const email = process.env.ADMIN_EMAIL?.toLowerCase();
+        const password = process.env.ADMIN_PASSWORD;
+        if (!email || !password) {
+            throw new Error(
+                'Base de données vide : ADMIN_EMAIL et ADMIN_PASSWORD doivent être définis dans .env ' +
+                'pour créer le premier compte administrateur. Aucun identifiant par défaut ne sera utilisé.'
+            );
+        }
 
         const school = await prisma.school.create({ data: { name: 'École Garden' } });
         await prisma.setting.create({ data: { schoolId: school.id, key: 'school.currency', value: 'MAD / DH' } });
