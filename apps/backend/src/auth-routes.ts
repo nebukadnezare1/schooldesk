@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import type { PrismaClient } from '@prisma/client';
 import { authenticate, clearSessionCookie, createSession, revokeSession, setSessionCookie, verifyPassword } from './auth.js';
 import { sendVerificationCodeEmail } from './mailer.js';
+import { isKnownCountryCode, isKnownCurrencyCode } from './currency.js';
 
 const CODE_TTL_MS = 15 * 60 * 1000;
 const CODE_RESEND_COOLDOWN_MS = 60 * 1000;
@@ -68,7 +69,7 @@ export const createAuthRouter = (prisma: PrismaClient) => {
         await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
         setSessionCookie(response, session.token, session.expiresAt);
         const school = await prisma.school.findUnique({ where: { id: user.schoolId } });
-        return response.json({ user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role.name, schoolName: school?.name ?? '' } });
+        return response.json({ user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role.name, schoolName: school?.name ?? '', currencyCode: school?.currencyCode ?? 'MAD' } });
     });
 
     router.post('/register', async (request, response) => {
@@ -76,10 +77,14 @@ export const createAuthRouter = (prisma: PrismaClient) => {
         const email = typeof request.body.email === 'string' ? request.body.email.trim().toLowerCase() : '';
         const password = typeof request.body.password === 'string' ? request.body.password : '';
         const code = typeof request.body.code === 'string' ? request.body.code.trim() : '';
+        const countryCode = typeof request.body.countryCode === 'string' ? request.body.countryCode.trim().toUpperCase() : '';
+        const currencyCode = typeof request.body.currencyCode === 'string' ? request.body.currencyCode.trim().toUpperCase() : '';
         if (!schoolName) return response.status(400).json({ error: "Le nom de l'école est requis." });
         if (!isValidEmail(email)) return response.status(400).json({ error: 'Email invalide.' });
         if (password.length < 8) return response.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères.' });
         if (!code) return response.status(400).json({ error: 'Code de vérification requis.' });
+        if (!isKnownCountryCode(countryCode)) return response.status(400).json({ error: 'Pays invalide — sélectionnez un pays dans la liste.' });
+        if (!isKnownCurrencyCode(currencyCode)) return response.status(400).json({ error: 'Devise invalide — sélectionnez une devise dans la liste.' });
 
         const existing = await prisma.user.findUnique({ where: { email } });
         if (existing) return response.status(409).json({ error: 'Cet email est déjà utilisé.' });
@@ -97,7 +102,7 @@ export const createAuthRouter = (prisma: PrismaClient) => {
 
         try {
             const user = await prisma.$transaction(async (transaction) => {
-                const school = await transaction.school.create({ data: { name: schoolName } });
+                const school = await transaction.school.create({ data: { name: schoolName, countryCode, currencyCode } });
                 const { label, startsAt, endsAt } = currentAcademicYearRange(new Date());
                 await transaction.academicYear.create({ data: { schoolId: school.id, label, startsAt, endsAt, status: 'ACTIVE' } });
                 const created = await transaction.user.create({
@@ -117,7 +122,7 @@ export const createAuthRouter = (prisma: PrismaClient) => {
             });
             const session = await createSession(prisma, user.id);
             setSessionCookie(response, session.token, session.expiresAt);
-            return response.status(201).json({ user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role.name, schoolName } });
+            return response.status(201).json({ user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role.name, schoolName, currencyCode } });
         } catch {
             return response.status(400).json({ error: 'Inscription impossible.' });
         }
@@ -126,7 +131,7 @@ export const createAuthRouter = (prisma: PrismaClient) => {
     router.get('/me', authenticate(prisma), async (request, response) => {
         const user = request.authUser!;
         const school = await prisma.school.findUnique({ where: { id: user.schoolId } });
-        return response.json({ user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role.name, permissions: user.role.permissions.map(({ permission }) => permission.code), schoolName: school?.name ?? '' } });
+        return response.json({ user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role.name, permissions: user.role.permissions.map(({ permission }) => permission.code), schoolName: school?.name ?? '', currencyCode: school?.currencyCode ?? 'MAD' } });
     });
 
     router.post('/logout', async (request, response) => {

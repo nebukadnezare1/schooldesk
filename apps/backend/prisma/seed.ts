@@ -38,7 +38,6 @@ try {
         }
 
         const school = await prisma.school.create({ data: { name: 'École Garden' } });
-        await prisma.setting.create({ data: { schoolId: school.id, key: 'school.currency', value: 'MAD / DH' } });
         await prisma.user.create({
             data: {
                 schoolId: school.id,

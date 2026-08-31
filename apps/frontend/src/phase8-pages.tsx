@@ -2,12 +2,12 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { DashboardSummary } from './types';
+import { formatCurrency } from './currency';
 
-type Props = { summary: DashboardSummary | null; activeYearLabel: string; onChangeMonth: (month?: string) => void };
+type Props = { summary: DashboardSummary | null; activeYearLabel: string; currency: string; onChangeMonth: (month?: string) => void };
 
 const feeStatusLabels: Record<string, string> = { PAID: 'Payé', PARTIALLY_PAID: 'Partiel', UNPAID: 'Non payé', OVERDUE: 'En retard', EXEMPT: 'Exonéré', CANCELLED: 'Annulé' };
 const feeStatusColors: Record<string, string> = { PAID: '#356743', PARTIALLY_PAID: '#c99a3f', UNPAID: '#a65d36', OVERDUE: '#a3372f', EXEMPT: '#6a8d72', CANCELLED: '#8c8c8c' };
-const money = (value: number) => `${value.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} DH`;
 const monthLabel = (key: string) => new Date(`${key}-01T00:00:00Z`).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit', timeZone: 'UTC' });
 const fullMonthLabel = (key: string) => {
     const label = new Date(`${key}-01T00:00:00Z`).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
@@ -33,14 +33,14 @@ const KpiCard = ({ label, value, hint, accent, to }: { label: string; value: str
 
 const FinanceRow = ({ label, value }: { label: string; value: string }) => <div className="flex items-center justify-between py-2.5 text-sm"><span className="text-[#6a8d72]">{label}</span><span className="font-medium">{value}</span></div>;
 
-const trendHint = (current: number, previous: number) => {
+const trendHint = (current: number, previous: number, currency: string) => {
     if (previous === 0 && current === 0) return 'Stable vs mois précédent';
     if (previous === 0) return 'Nouveau ce mois';
     const change = Math.round(((current - previous) / previous) * 100);
-    return `${change >= 0 ? '+' : ''}${change}% vs mois précédent (${money(previous)})`;
+    return `${change >= 0 ? '+' : ''}${change}% vs mois précédent (${formatCurrency(previous, currency)})`;
 };
 
-export const DashboardPage = ({ summary, activeYearLabel, onChangeMonth }: Props) => {
+export const DashboardPage = ({ summary, activeYearLabel, currency, onChangeMonth }: Props) => {
     if (!summary) return <Shell title="Dashboard" eyebrow="Vue générale"><Panel><p className="text-[#557064]">Chargement des données…</p></Panel></Shell>;
     const { students, staff, finance, charts, toDo, month, isCurrentMonth } = summary;
     const toDoItems = [
@@ -61,9 +61,9 @@ export const DashboardPage = ({ summary, activeYearLabel, onChangeMonth }: Props
 
     return <Shell eyebrow={`Vue générale · ${activeYearLabel}`} title="Dashboard" titleExtra={monthNav}>
         <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
-            <KpiCard accent="#356743" hint={`À la fin de ${monthLabel(month)}`} label="Solde de caisse" to="/cash" value={money(finance.balance)} />
-            <KpiCard accent="#356743" hint={<>{trendHint(finance.monthIncome, finance.previousMonthIncome)}<br />Attendu : {money(finance.monthExpected)}</>} label={`Encaissé — ${monthLabel(month)}`} to="/payments" value={money(finance.monthIncome)} />
-            <KpiCard accent={finance.unpaidTotal > 0 ? '#a65d36' : '#356743'} hint={finance.unpaidTotal > 0 ? 'À relancer' : 'Aucun impayé en cours'} label="Impayés en cours" to="/unpaid" value={money(finance.unpaidTotal)} />
+            <KpiCard accent="#356743" hint={`À la fin de ${monthLabel(month)}`} label="Solde de caisse" to="/cash" value={formatCurrency(finance.balance, currency)} />
+            <KpiCard accent="#356743" hint={<>{trendHint(finance.monthIncome, finance.previousMonthIncome, currency)}<br />Attendu : {formatCurrency(finance.monthExpected, currency)}</>} label={`Encaissé — ${monthLabel(month)}`} to="/payments" value={formatCurrency(finance.monthIncome, currency)} />
+            <KpiCard accent={finance.unpaidTotal > 0 ? '#a65d36' : '#356743'} hint={finance.unpaidTotal > 0 ? 'À relancer' : 'Aucun impayé en cours'} label="Impayés en cours" to="/unpaid" value={formatCurrency(finance.unpaidTotal, currency)} />
             <KpiCard accent="#4e8060" hint={`${students.boys} G · ${students.girls} F · +${students.newThisMonth} ce mois`} label="Élèves actifs" to="/students" value={String(students.active)} />
             <KpiCard accent="#4e8060" hint={`dont ${staff.teachersActive} professeur(s)`} label="Personnel actif" to="/staff" value={String(staff.active)} />
             {toDoItems.length === 1
@@ -87,18 +87,18 @@ export const DashboardPage = ({ summary, activeYearLabel, onChangeMonth }: Props
                             <CartesianGrid stroke="#e5efe4" strokeDasharray="4 4" />
                             <XAxis dataKey="label" stroke="#6a8d72" tick={{ fontSize: 12 }} />
                             <YAxis stroke="#6a8d72" tick={{ fontSize: 12 }} width={70} />
-                            <Tooltip formatter={(value: number) => money(value)} />
+                            <Tooltip formatter={(value: number) => formatCurrency(value, currency)} />
                             <Legend />
                             <Bar dataKey="Recettes" fill="#356743" name="Recettes" radius={[6, 6, 0, 0]} />
                             <Bar dataKey="Dépenses" fill="#a65d36" name="Dépenses" radius={[6, 6, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
-                    <p className="mt-2 text-center text-xs text-[#6a8d72]">Résultat du mois : <strong className="text-[#18352b]">{money(finance.monthIncome - finance.monthExpenses - finance.monthPayroll)}</strong></p>
+                    <p className="mt-2 text-center text-xs text-[#6a8d72]">Résultat du mois : <strong className="text-[#18352b]">{formatCurrency(finance.monthIncome - finance.monthExpenses - finance.monthPayroll, currency)}</strong></p>
                 </div>
                 <div className="flex flex-col justify-center gap-1 lg:flex-1 lg:border-l lg:border-[#edf4ec] lg:pl-6">
-                    <FinanceRow label="Encaissé du mois" value={money(finance.monthIncome)} />
-                    <FinanceRow label="Dépenses du mois" value={money(finance.monthExpenses)} />
-                    <FinanceRow label="Salaires du mois" value={money(finance.monthPayroll)} />
+                    <FinanceRow label="Encaissé du mois" value={formatCurrency(finance.monthIncome, currency)} />
+                    <FinanceRow label="Dépenses du mois" value={formatCurrency(finance.monthExpenses, currency)} />
+                    <FinanceRow label="Salaires du mois" value={formatCurrency(finance.monthPayroll, currency)} />
                 </div>
             </div>
         </Panel>

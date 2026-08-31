@@ -2,9 +2,12 @@ import { FormEvent, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { AcademicYear, Employee, FinanceStudentFee, FinanceSummaryEntry, Payment, SchoolClass, Student, UnpaidFee } from './types';
+import { formatCurrency } from './currency';
+import type { CodeOption } from './currency';
 
 type PageProps = {
     message: string;
+    currency: string;
     academicYears: AcademicYear[];
     classes: SchoolClass[];
     students: Student[];
@@ -43,6 +46,34 @@ const daysLate = (dueDate: string) => Math.max(0, Math.floor((Date.now() - new D
 export const Field = ({ label, value, onChange, type = 'text', placeholder, required = true }: { label?: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string; required?: boolean }) => (
     <label className="block text-sm font-medium text-[#315a48]">{label}<input className="mt-1 w-full rounded-lg border border-[#cbdacb] bg-white px-3 py-2" type={type} value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} required={required} /></label>
 );
+
+/**
+ * Devise déterminée automatiquement à partir du pays (voir currency.ts, COUNTRY_CURRENCY) : affichée
+ * en lecture seule par défaut, avec un lien « Modifier la devise » qui révèle la liste complète pour
+ * les cas particuliers. Remonter ce composant avec une `key` liée au pays (ex. `key={countryCode}`)
+ * fait revenir l'affichage en mode lecture seule dès que le pays change — cohérent avec la règle
+ * « la devise suit automatiquement le pays » : un changement de pays doit toujours l'emporter sur un
+ * override manuel précédent, jamais l'inverse.
+ */
+export const CurrencyField = ({ value, onChange, options, name }: { value: string; onChange: (value: string) => void; options: CodeOption[]; name?: string }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const label = options.find((option) => option.value === value)?.label ?? value;
+
+    if (isEditing) return <label className="block text-sm font-medium text-[#315a48]">Devise
+        <select className="mt-1 w-full rounded-lg border border-[#cbdacb] bg-white px-3 py-2 text-base" name={name} onChange={(event) => onChange(event.target.value)} required value={value}>
+            {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+        </select>
+    </label>;
+
+    return <div>
+        <span className="block text-sm font-medium text-[#315a48]">Devise</span>
+        <div className="mt-1 flex items-center justify-between gap-2 rounded-lg border border-[#cbdacb] bg-[#f7faf6] px-3 py-2">
+            <span className="text-sm text-[#18352b]">{label}</span>
+            <button className="whitespace-nowrap text-xs font-medium text-[#356743] underline" onClick={() => setIsEditing(true)} type="button">Modifier la devise</button>
+        </div>
+        {name && <input name={name} type="hidden" value={value} />}
+    </div>;
+};
 
 const frenchMonthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 const parseMonthPeriod = (value: string) => {
@@ -144,7 +175,7 @@ export const ContextMenu = ({ x, y, items, onClose }: { x: number; y: number; it
     </>;
 };
 
-export const StudentsPage = ({ students, classes, onCreateStudent, onUpdateStudent, onDeleteStudent, onMarkStudentLeft, setValue, values }: PageProps) => {
+export const StudentsPage = ({ students, classes, currency, onCreateStudent, onUpdateStudent, onDeleteStudent, onMarkStudentLeft, setValue, values }: PageProps) => {
     const [isModalOpen, setModalOpen] = useState(false);
     const [contextMenu, setContextMenu] = useState<{ studentId: string; x: number; y: number } | null>(null);
     const [classFilter, setClassFilter] = useState('');
@@ -254,8 +285,8 @@ export const StudentsPage = ({ students, classes, onCreateStudent, onUpdateStude
                 <div className="sm:col-span-2"><Field label="Domiciliation" onChange={(value) => setValue('studentAddress', value)} placeholder="Adresse de résidence de l'élève" value={values.studentAddress} /></div>
 
                 <div className="sm:col-span-2 border-t border-[#d6e1d5] pt-4"><p className="text-sm font-semibold uppercase tracking-[0.15em] text-[#6a8d72]">Frais de scolarité</p><p className="mt-1 text-xs text-[#6a8d72]">Ces montants sont ceux appliqués automatiquement lors d'un encaissement pour cet élève.</p></div>
-                <Field label="Mensualité (DH)" onChange={(value) => setValue('studentMonthlyFee', value)} placeholder="Ex. 500" type="number" value={values.studentMonthlyFee} />
-                <Field label="Assurance annuelle (DH)" onChange={(value) => setValue('studentInsuranceFee', value)} placeholder="Ex. 150" type="number" value={values.studentInsuranceFee} />
+                <Field label={`Mensualité (${currency})`} onChange={(value) => setValue('studentMonthlyFee', value)} placeholder="Ex. 500" type="number" value={values.studentMonthlyFee} />
+                <Field label={`Assurance annuelle (${currency})`} onChange={(value) => setValue('studentInsuranceFee', value)} placeholder="Ex. 150" type="number" value={values.studentInsuranceFee} />
 
                 <div className="mt-2 border-t border-[#d6e1d5] pt-4 sm:col-span-2">
                     <p className="text-sm font-semibold uppercase tracking-[0.15em] text-[#6a8d72]">Tuteur / responsable</p>
@@ -385,7 +416,7 @@ const employeeSortValue = (employee: Employee, key: EmployeeSortKey): string | n
     }
 };
 
-export const StaffPage = ({ employees, onCreateEmployee, onUpdateEmployee, onDeleteEmployee, setValue, values }: PageProps) => {
+export const StaffPage = ({ employees, currency, onCreateEmployee, onUpdateEmployee, onDeleteEmployee, setValue, values }: PageProps) => {
     const [isModalOpen, setModalOpen] = useState(false);
     const [contextMenu, setContextMenu] = useState<{ employeeId: string; x: number; y: number } | null>(null);
     const isEditing = Boolean(values.editingEmployeeId);
@@ -439,7 +470,7 @@ export const StaffPage = ({ employees, onCreateEmployee, onUpdateEmployee, onDel
                         <td className="py-2 pr-4">{employee.phone || '—'}</td>
                         <td className="py-2 pr-4">{employee.email || '—'}</td>
                         <td className="py-2 pr-4">{employee.hiredAt ? new Date(employee.hiredAt).toLocaleDateString('fr-FR') : '—'}</td>
-                        <td className="py-2 pr-4 text-right">{employee.baseSalary ? `${employee.baseSalary} DH` : '—'}</td>
+                        <td className="py-2 pr-4 text-right">{employee.baseSalary ? formatCurrency(employee.baseSalary, currency) : '—'}</td>
                         <td className="py-2 pr-4"><span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${employeeStatusColors[employee.status] ?? 'bg-[#edf4ec] text-[#356743]'}`}>{employeeStatusLabels[employee.status] ?? employee.status}</span></td>
                         <td className="py-2 pl-2"><RowMenuButton onOpen={(x, y) => setContextMenu({ employeeId: employee.id, x, y })} /></td>
                     </tr>)}
@@ -504,7 +535,7 @@ const paymentsSortValue = (row: PaymentsRow, key: PaymentsSortKey): string | num
     }
 };
 
-export const PaymentsPage = ({ students, classes, studentFees, payments, feeTypes, financeSummary, onCreateFee, onCreatePayment, onCreateFeeType, onCancelPayment, onSelectFinanceStudent, setValue, values }: PageProps & { feeTypes: { id: string; name: string; defaultAmount: string }[]; onCreateFeeType: () => void }) => {
+export const PaymentsPage = ({ students, classes, currency, studentFees, payments, feeTypes, financeSummary, onCreateFee, onCreatePayment, onCreateFeeType, onCancelPayment, onSelectFinanceStudent, setValue, values }: PageProps & { feeTypes: { id: string; name: string; defaultAmount: string }[]; onCreateFeeType: () => void }) => {
     const navigate = useNavigate();
     const [rowMenu, setRowMenu] = useState<{ studentId: string; x: number; y: number } | null>(null);
     const [historyMenu, setHistoryMenu] = useState<{ paymentId: string; x: number; y: number } | null>(null);
@@ -588,9 +619,9 @@ export const PaymentsPage = ({ students, classes, studentFees, payments, feeType
                         <td className="py-2 pr-4 font-medium">{row.student.firstName} {row.student.lastName}{row.student.status === 'LEFT' && <span className={`ml-2 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${studentStatusColors.LEFT}`}>{studentStatusLabels.LEFT}</span>}</td>
                         <td className="py-2 pr-4">{row.student.matricule}</td>
                         <td className="py-2 pr-4">{row.student.enrollments[0]?.schoolClass.name ?? '—'}</td>
-                        <td className="py-2 pr-4 text-right">{row.totalDue} DH</td>
-                        <td className="py-2 pr-4 text-right">{row.totalPaid} DH</td>
-                        <td className="py-2 pr-4 text-right font-semibold">{row.remaining} DH</td>
+                        <td className="py-2 pr-4 text-right">{formatCurrency(row.totalDue, currency)}</td>
+                        <td className="py-2 pr-4 text-right">{formatCurrency(row.totalPaid, currency)}</td>
+                        <td className="py-2 pr-4 text-right font-semibold">{formatCurrency(row.remaining, currency)}</td>
                         <td className="py-2 pr-4"><span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${paymentsStatusColors[row.status] ?? 'bg-[#edf4ec] text-[#356743]'}`}>{paymentsStatusLabels[row.status] ?? row.status}</span></td>
                         <td className="py-2 pl-2"><RowMenuButton onOpen={(x, y) => setRowMenu({ studentId: row.student.id, x, y })} /></td>
                     </tr>)}
@@ -616,8 +647,8 @@ export const PaymentsPage = ({ students, classes, studentFees, payments, feeType
                     : <Field label="Mois / période" onChange={(value) => setValue('feePeriod', value)} value={values.feePeriod} />}
                 {selectedFeeType && <p className="text-xs text-[#6a8d72] sm:col-span-2">
                     {existingFeeForPeriod
-                        ? `Frais déjà existant pour cette période : ${existingFeeForPeriod.finalAmount} DH dû, reste ${existingFeeForPeriod.remaining} DH.`
-                        : `Nouveau frais : ${previewAmount ?? '—'} DH seront dus pour cette période${studentSpecificAmount ? ' (montant configuré pour cet élève)' : ' — tarif par défaut du type, non configuré pour cet élève'}.`}
+                        ? `Frais déjà existant pour cette période : ${formatCurrency(existingFeeForPeriod.finalAmount, currency)} dû, reste ${formatCurrency(existingFeeForPeriod.remaining, currency)}.`
+                        : `Nouveau frais : ${previewAmount != null ? formatCurrency(previewAmount, currency) : '—'} seront dus pour cette période${studentSpecificAmount ? ' (montant configuré pour cet élève)' : ' — tarif par défaut du type, non configuré pour cet élève'}.`}
                 </p>}
                 <Field label="Montant payé" onChange={(value) => setValue('paymentAmount', value)} type="number" value={values.paymentAmount} />
                 <label className="text-sm font-medium text-[#315a48]">Mode<select className="mt-1 w-full rounded-lg border border-[#cbdacb] px-3 py-2" onChange={(event) => setValue('paymentMethod', event.target.value)} value={values.paymentMethod}><option value="CASH">Espèces</option><option value="TRANSFER">Virement</option><option value="CHECK">Chèque</option><option value="CARD">Carte</option></select></label>
@@ -639,7 +670,7 @@ export const PaymentsPage = ({ students, classes, studentFees, payments, feeType
         <Modal onClose={() => setFeeTypeModalOpen(false)} open={isFeeTypeModalOpen} title="Nouveau type de frais">
             <form className="grid gap-3 sm:grid-cols-2" onSubmit={handleFeeTypeSubmit}>
                 <div className="sm:col-span-2"><Field label="Nom" onChange={(value) => setValue('newFeeTypeName', value)} value={values.newFeeTypeName} /></div>
-                <Field label="Montant par défaut (DH)" onChange={(value) => setValue('newFeeTypeAmount', value)} type="number" value={values.newFeeTypeAmount} />
+                <Field label={`Montant par défaut (${currency})`} onChange={(value) => setValue('newFeeTypeAmount', value)} type="number" value={values.newFeeTypeAmount} />
                 <label className="text-sm font-medium text-[#315a48]">Fréquence<select className="mt-1 w-full rounded-lg border border-[#cbdacb] px-3 py-2" onChange={(event) => setValue('newFeeTypeFrequency', event.target.value)} value={values.newFeeTypeFrequency}><option value="ONE_TIME">Ponctuel</option><option value="MONTHLY">Mensuel</option><option value="QUARTERLY">Trimestriel</option><option value="YEARLY">Annuel</option><option value="OTHER">Autre</option></select></label>
                 <p className="text-xs text-[#6a8d72] sm:col-span-2">Le montant par défaut ne s'applique que si l'élève n'a pas de tarif spécifique configuré.</p>
                 <div className="sm:col-span-2"><button className="w-full rounded-lg bg-[#356743] px-4 py-2 font-medium text-white" type="submit">Créer le type de frais</button></div>
@@ -650,7 +681,7 @@ export const PaymentsPage = ({ students, classes, studentFees, payments, feeType
             <h3 className="text-base font-semibold text-[#18352b]">Frais de l'élève</h3>
             <p className="mt-1 text-xs text-[#6a8d72]">Cliquer sur un frais pour filtrer son historique de paiements ci-dessous · clic droit (ou ⋮) pour voir tous ses reçus.</p>
             <div className="mt-2 space-y-2">{studentFees.map((fee) => <div className={`flex items-stretch gap-1 rounded-lg border ${historyFeeFilter === fee.id ? 'border-[#356743] bg-[#f7faf6]' : 'border-[#d6e1d5]'}`} key={fee.id} onContextMenu={(event) => { event.preventDefault(); setFeeMenu({ feeId: fee.id, x: event.clientX, y: event.clientY }); }}>
-                <button className="flex flex-1 flex-wrap items-center justify-between gap-2 p-3 text-left" onClick={() => setHistoryFeeFilter((current) => current === fee.id ? '' : fee.id)} type="button"><span>{fee.feeType.name} · {fee.period}</span><span className="text-sm text-[#557064]">Dû {fee.finalAmount} DH · Payé {fee.paidAmount} DH · Reste <strong>{fee.remaining} DH</strong> · {feeStatusLabels[fee.status] ?? fee.status}</span></button>
+                <button className="flex flex-1 flex-wrap items-center justify-between gap-2 p-3 text-left" onClick={() => setHistoryFeeFilter((current) => current === fee.id ? '' : fee.id)} type="button"><span>{fee.feeType.name} · {fee.period}</span><span className="text-sm text-[#557064]">Dû {formatCurrency(fee.finalAmount, currency)} · Payé {formatCurrency(fee.paidAmount, currency)} · Reste <strong>{formatCurrency(fee.remaining, currency)}</strong> · {feeStatusLabels[fee.status] ?? fee.status}</span></button>
                 <div className="flex items-center pr-2"><RowMenuButton onOpen={(x, y) => setFeeMenu({ feeId: fee.id, x, y })} /></div>
             </div>)}</div>
             {studentFees.length === 0 && <p className="mt-2 text-sm text-[#557064]">Aucun frais enregistré pour cet élève.</p>}
@@ -673,7 +704,7 @@ export const PaymentsPage = ({ students, classes, studentFees, payments, feeType
                             {filteredPayments.map((payment) => <tr className={`cursor-context-menu border-b border-[#edf4ec] hover:bg-[#f7faf6] ${payment.cancelledAt ? 'opacity-60' : ''}`} key={payment.id} onContextMenu={(event) => { event.preventDefault(); setHistoryMenu({ paymentId: payment.id, x: event.clientX, y: event.clientY }); }}>
                                 <td className="py-2 pr-4">{payment.receiptNumber}</td>
                                 <td className="py-2 pr-4">{new Date(payment.paidAt).toLocaleDateString('fr-FR')}</td>
-                                <td className="py-2 pr-4 text-right">{payment.amount} DH</td>
+                                <td className="py-2 pr-4 text-right">{formatCurrency(payment.amount, currency)}</td>
                                 <td className="py-2 pr-4">{paymentMethodLabels[payment.method] ?? payment.method}</td>
                                 <td className="py-2 pr-4">{payment.cancelledAt ? <span className="whitespace-nowrap rounded-full bg-[#f4e6e1] px-2 py-0.5 text-xs font-medium text-[#a3372f]">Annulé</span> : <span className="whitespace-nowrap rounded-full bg-[#e5f1e5] px-2 py-0.5 text-xs font-medium text-[#356743]">Actif</span>}</td>
                                 <td className="py-2 pl-2"><RowMenuButton onOpen={(x, y) => setHistoryMenu({ paymentId: payment.id, x, y })} /></td>
@@ -711,7 +742,7 @@ const unpaidSortValue = (fee: UnpaidFee, key: UnpaidSortKey): string | number =>
     }
 };
 
-export const UnpaidPage = ({ unpaidFees, classes, academicYears, onFilterUnpaid, onViewUnpaidInPayments, setValue, values }: PageProps) => {
+export const UnpaidPage = ({ unpaidFees, classes, currency, academicYears, onFilterUnpaid, onViewUnpaidInPayments, setValue, values }: PageProps) => {
     const { sorted: sortedFees, sortKey, sortDirection, toggleSort } = useSortedRows(unpaidFees, 'dueDate' as UnpaidSortKey, unpaidSortValue);
 
     return <PageShell title="Impayés" eyebrow="Suivi des créances">
@@ -744,9 +775,9 @@ export const UnpaidPage = ({ unpaidFees, classes, academicYears, onFilterUnpaid,
                         <td className="py-2 pr-4">{fee.guardian ? <>{fee.guardian.name}<p className="text-xs text-[#6a8d72]">{fee.guardian.phone}</p></> : '—'}</td>
                         <td className="py-2 pr-4">{fee.feeType} · {fee.period}</td>
                         <td className="py-2 pr-4">{new Date(fee.dueDate).toLocaleDateString('fr-FR')}{daysLate(fee.dueDate) > 0 && <p className="text-xs text-[#a3372f]">{daysLate(fee.dueDate)} j de retard</p>}</td>
-                        <td className="py-2 pr-4 text-right">{fee.expectedAmount} DH</td>
-                        <td className="py-2 pr-4 text-right">{fee.paidAmount} DH</td>
-                        <td className="py-2 pr-4 text-right font-semibold">{fee.remaining} DH</td>
+                        <td className="py-2 pr-4 text-right">{formatCurrency(fee.expectedAmount, currency)}</td>
+                        <td className="py-2 pr-4 text-right">{formatCurrency(fee.paidAmount, currency)}</td>
+                        <td className="py-2 pr-4 text-right font-semibold">{formatCurrency(fee.remaining, currency)}</td>
                         <td className="py-2 pr-4">{unpaidStatusLabels[fee.status] ?? fee.status}</td>
                         <td className="py-2 pr-4"><button className="rounded-lg border border-[#356743] px-3 py-1 text-sm text-[#356743]" onClick={() => onViewUnpaidInPayments(fee.student.id, fee.feeTypeId, fee.period, fee.remaining)} type="button">Encaisser</button></td>
                     </tr>)}

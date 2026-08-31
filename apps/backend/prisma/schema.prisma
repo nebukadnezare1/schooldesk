@@ -47,8 +47,13 @@ model RegistrationCode {
 }
 
 model School {
-  id        String   @id @default(uuid())
-  name      String
+  id           String   @id @default(uuid())
+  name         String
+  // ISO 3166-1 alpha-2 (e.g. "MA", "FR") / ISO 4217 alpha-3 (e.g. "MAD", "EUR"). Existing schools
+  // backfilled to MA/MAD by the migration that introduced these columns — never converted afterwards
+  // (currency is a display unit, not an exchange rate; see currency.ts).
+  countryCode  String   @default("MA")
+  currencyCode String   @default("MAD")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

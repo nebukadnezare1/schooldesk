@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import type { PaymentDetail, PayslipDetail, Settings } from './types';
 import { apiUrl } from './api-url';
+import { formatCurrency } from './currency';
 
 const methodLabels: Record<string, string> = { CASH: 'Espèces', TRANSFER: 'Virement', CHECK: 'Chèque', CARD: 'Carte', OTHER: 'Autre' };
 const employeeTypeLabels: Record<string, string> = { TEACHER: 'Professeur', DIRECTOR: 'Directrice', ASSISTANT: 'Assistant', ADMINISTRATION: 'Administration', OTHER: 'Autre' };
@@ -11,11 +12,10 @@ const monthLabel = (value: string) => {
     if (!match) return value;
     return `${frenchMonthNames[Number(match[2]) - 1] ?? match[2]} ${match[1]}`;
 };
-const money = (value: string, currency: string) => `${Number(value).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} ${currency}`;
 const sanitizeFileName = (value: string) => value.replace(/[\\/:*?"<>|]/g, '-');
 
 const ReceiptCard = ({ payment, settings }: { payment: PaymentDetail; settings: Settings }) => {
-    const currency = settings['school.currency'] || 'MAD';
+    const currency = settings['school.currencyCode'] || 'MAD';
     const schoolClass = payment.student.enrollments[0]?.schoolClass.name ?? 'Non inscrit';
 
     return <div className="rounded-2xl border border-[#d6e1d5] p-8">
@@ -48,7 +48,7 @@ const ReceiptCard = ({ payment, settings }: { payment: PaymentDetail; settings: 
 
         <table className="mt-6 w-full text-sm">
             <thead><tr className="border-b border-[#d6e1d5] text-left text-[#6a8d72]"><th className="py-2">Description</th><th className="py-2">Période</th><th className="py-2 text-right">Montant</th></tr></thead>
-            <tbody>{payment.allocations.map((allocation, index) => <tr className="border-b border-[#edf4ec]" key={index}><td className="py-2">{allocation.studentFee.feeType.name}</td><td className="py-2">{allocation.studentFee.period}</td><td className="py-2 text-right">{money(allocation.amount, currency)}</td></tr>)}</tbody>
+            <tbody>{payment.allocations.map((allocation, index) => <tr className="border-b border-[#edf4ec]" key={index}><td className="py-2">{allocation.studentFee.feeType.name}</td><td className="py-2">{allocation.studentFee.period}</td><td className="py-2 text-right">{formatCurrency(allocation.amount, currency)}</td></tr>)}</tbody>
         </table>
 
         {payment.comment && <p className="mt-4 text-sm text-[#557064]">{payment.comment}</p>}
@@ -64,7 +64,7 @@ const ReceiptCard = ({ payment, settings }: { payment: PaymentDetail; settings: 
             </div>
             <div className="text-right">
                 <p className="text-sm text-[#6a8d72]">Total</p>
-                <p className="text-2xl font-semibold">{money(payment.amount, currency)}</p>
+                <p className="text-2xl font-semibold">{formatCurrency(payment.amount, currency)}</p>
             </div>
         </div>
     </div>;
@@ -153,7 +153,7 @@ export const FeeReceiptsPage = () => {
 };
 
 const PayslipCard = ({ payment, settings }: { payment: PayslipDetail; settings: Settings }) => {
-    const currency = settings['school.currency'] || 'MAD';
+    const currency = settings['school.currencyCode'] || 'MAD';
     const { payroll } = payment;
 
     return <div className="rounded-2xl border border-[#d6e1d5] p-8">
@@ -187,11 +187,11 @@ const PayslipCard = ({ payment, settings }: { payment: PayslipDetail; settings: 
         <table className="mt-6 w-full text-sm">
             <thead><tr className="border-b border-[#d6e1d5] text-left text-[#6a8d72]"><th className="py-2">Élément</th><th className="py-2 text-right">Montant</th></tr></thead>
             <tbody>
-                <tr className="border-b border-[#edf4ec]"><td className="py-2">Salaire de base</td><td className="py-2 text-right">{money(payroll.baseSalary, currency)}</td></tr>
-                {Number(payroll.bonuses) > 0 && <tr className="border-b border-[#edf4ec]"><td className="py-2">Primes</td><td className="py-2 text-right">+{money(payroll.bonuses, currency)}</td></tr>}
-                {Number(payroll.advances) > 0 && <tr className="border-b border-[#edf4ec]"><td className="py-2">Avances déduites</td><td className="py-2 text-right">-{money(payroll.advances, currency)}</td></tr>}
-                {Number(payroll.deductions) > 0 && <tr className="border-b border-[#edf4ec]"><td className="py-2">Retenues</td><td className="py-2 text-right">-{money(payroll.deductions, currency)}</td></tr>}
-                <tr className="font-semibold"><td className="py-2">Salaire net</td><td className="py-2 text-right">{money(payroll.netSalary, currency)}</td></tr>
+                <tr className="border-b border-[#edf4ec]"><td className="py-2">Salaire de base</td><td className="py-2 text-right">{formatCurrency(payroll.baseSalary, currency)}</td></tr>
+                {Number(payroll.bonuses) > 0 && <tr className="border-b border-[#edf4ec]"><td className="py-2">Primes</td><td className="py-2 text-right">+{formatCurrency(payroll.bonuses, currency)}</td></tr>}
+                {Number(payroll.advances) > 0 && <tr className="border-b border-[#edf4ec]"><td className="py-2">Avances déduites</td><td className="py-2 text-right">-{formatCurrency(payroll.advances, currency)}</td></tr>}
+                {Number(payroll.deductions) > 0 && <tr className="border-b border-[#edf4ec]"><td className="py-2">Retenues</td><td className="py-2 text-right">-{formatCurrency(payroll.deductions, currency)}</td></tr>}
+                <tr className="font-semibold"><td className="py-2">Salaire net</td><td className="py-2 text-right">{formatCurrency(payroll.netSalary, currency)}</td></tr>
             </tbody>
         </table>
 
@@ -206,7 +206,7 @@ const PayslipCard = ({ payment, settings }: { payment: PayslipDetail; settings: 
             </div>
             <div className="text-right">
                 <p className="text-sm text-[#6a8d72]">Montant versé</p>
-                <p className="text-2xl font-semibold">{money(payment.amount, currency)}</p>
+                <p className="text-2xl font-semibold">{formatCurrency(payment.amount, currency)}</p>
             </div>
         </div>
     </div>;

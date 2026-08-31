@@ -3,6 +3,7 @@ import type { FormEvent, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CancelReasonModal, ContextMenu, Field, Modal, RowMenuButton, SortHeader, useSortedRows } from './pages';
 import type { CashEntry, Employee, Expense, ExpenseCategory, Payroll, PayrollPayment, SalaryAdvance, SchoolClass } from './types';
+import { formatCurrency } from './currency';
 
 const methodLabels: Record<string, string> = { CASH: 'Espèces', TRANSFER: 'Virement', CHECK: 'Chèque', CARD: 'Carte', OTHER: 'Autre' };
 const payrollStatusLabels: Record<string, string> = { TO_PAY: 'À payer', PARTIALLY_PAID: 'Partiellement payé', PAID: 'Payé' };
@@ -49,6 +50,7 @@ const emptyExpenseValues: Record<string, string> = { expenseCategoryId: '', expe
 type ExpensesPageProps = {
     categories: ExpenseCategory[];
     expenses: Expense[];
+    currency: string;
     values: Record<string, string>;
     setValue: (key: string, value: string) => void;
     onCreateExpense: (event: FormEvent<HTMLFormElement>) => void;
@@ -56,7 +58,7 @@ type ExpensesPageProps = {
     onCancelExpense: (expenseId: string, reason: string) => void;
 };
 
-export const ExpensesPage = ({ categories, expenses, values, setValue, onCreateExpense, onCreateCategory, onCancelExpense }: ExpensesPageProps) => {
+export const ExpensesPage = ({ categories, expenses, currency, values, setValue, onCreateExpense, onCreateCategory, onCancelExpense }: ExpensesPageProps) => {
     const [isModalOpen, setModalOpen] = useState(false);
     const [contextMenu, setContextMenu] = useState<{ expenseId: string; x: number; y: number } | null>(null);
     const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
@@ -88,7 +90,7 @@ export const ExpensesPage = ({ categories, expenses, values, setValue, onCreateE
                             <td className="py-2 pr-4">{new Date(expense.occurredAt).toLocaleDateString('fr-FR')}</td>
                             <td className="py-2 pr-4">{expense.category.name}</td>
                             <td className="py-2 pr-4">{expense.description}{expense.beneficiary && <span className="text-[#6a8d72]"> · {expense.beneficiary}</span>}</td>
-                            <td className="py-2 pr-4 text-right">{expense.amount} DH</td>
+                            <td className="py-2 pr-4 text-right">{formatCurrency(expense.amount, currency)}</td>
                             <td className="py-2 pr-4">{methodLabels[expense.method] ?? expense.method}</td>
                             <td className="py-2 pr-4">{expense.cancelledAt ? <StatusBadge colorClass="bg-[#f4e6e1] text-[#a3372f]" label="Annulé" /> : <StatusBadge colorClass="bg-[#e5f1e5] text-[#356743]" label="Actif" />}</td>
                             <td className="py-2 pl-2"><RowMenuButton onOpen={(x, y) => setContextMenu({ expenseId: expense.id, x, y })} /></td>
@@ -150,7 +152,7 @@ const advanceSortValue = (advance: SalaryAdvance, key: AdvanceSortKey): string |
 const emptyPayrollValues: Record<string, string> = { payrollEmployeeId: '', payrollMonth: '', payrollBaseSalary: '', payrollBonuses: '0', payrollAdvances: '0', payrollDeductions: '0', editingPayrollId: '' };
 const emptyAdvanceValues: Record<string, string> = { advanceEmployeeId: '', advanceAmount: '', advanceReason: '', advanceMonth: '' };
 
-const PayModal = ({ open, onClose, onConfirm, payroll }: { open: boolean; onClose: () => void; onConfirm: (amount: number, method: string) => void; payroll: Payroll | null }) => {
+const PayModal = ({ open, onClose, onConfirm, payroll, currency }: { open: boolean; onClose: () => void; onConfirm: (amount: number, method: string) => void; payroll: Payroll | null; currency: string }) => {
     const [amount, setAmount] = useState('');
     const [method, setMethod] = useState('CASH');
     const remaining = payroll ? Math.max(0, Number(payroll.netSalary) - Number(payroll.amountPaid)) : 0;
@@ -160,7 +162,7 @@ const PayModal = ({ open, onClose, onConfirm, payroll }: { open: boolean; onClos
     }, [open, payroll?.id]);
 
     return <Modal onClose={onClose} open={open} title="Enregistrer un versement">
-        {payroll && <p className="mb-3 text-sm text-[#6a8d72]">{payroll.employee.firstName} {payroll.employee.lastName} — reste {remaining} DH sur {payroll.netSalary} DH.</p>}
+        {payroll && <p className="mb-3 text-sm text-[#6a8d72]">{payroll.employee.firstName} {payroll.employee.lastName} — reste {formatCurrency(remaining, currency)} sur {formatCurrency(payroll.netSalary, currency)}.</p>}
         <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Montant" onChange={setAmount} type="number" value={amount} />
             <label className="block text-sm font-medium text-[#315a48]">Mode<select className="mt-1 w-full rounded-lg border border-[#cbdacb] bg-white px-3 py-2" onChange={(event) => setMethod(event.target.value)} value={method}><option value="CASH">Espèces</option><option value="TRANSFER">Virement</option><option value="CHECK">Chèque</option><option value="CARD">Carte</option></select></label>
@@ -169,14 +171,14 @@ const PayModal = ({ open, onClose, onConfirm, payroll }: { open: boolean; onClos
     </Modal>;
 };
 
-const PayrollPaymentsModal = ({ open, onClose, payroll, onCancelPayment }: { open: boolean; onClose: () => void; payroll: Payroll | null; onCancelPayment: (paymentId: string) => void }) => {
+const PayrollPaymentsModal = ({ open, onClose, payroll, onCancelPayment, currency }: { open: boolean; onClose: () => void; payroll: Payroll | null; onCancelPayment: (paymentId: string) => void; currency: string }) => {
     const navigate = useNavigate();
     if (!payroll) return <Modal onClose={onClose} open={false} title="Versements">{null}</Modal>;
     return <Modal onClose={onClose} open={open} title={`Versements — ${payroll.employee.firstName} ${payroll.employee.lastName} (${payroll.month})`}>
         <div className="space-y-2">
             {payroll.payments.map((payment: PayrollPayment) => <div className={`flex items-center justify-between rounded-lg border border-[#d6e1d5] p-3 ${payment.cancelledAt ? 'opacity-60' : ''}`} key={payment.id}>
                 <div>
-                    <p>{new Date(payment.paidAt).toLocaleDateString('fr-FR')} · {payment.amount} DH · {methodLabels[payment.method] ?? payment.method}</p>
+                    <p>{new Date(payment.paidAt).toLocaleDateString('fr-FR')} · {formatCurrency(payment.amount, currency)} · {methodLabels[payment.method] ?? payment.method}</p>
                     {payment.cancelledAt && <p className="text-xs text-[#a3372f]">Annulé{payment.cancelReason ? ` — ${payment.cancelReason}` : ''}</p>}
                 </div>
                 <div className="flex gap-2">
@@ -193,6 +195,7 @@ type PayrollPageProps = {
     employees: Employee[];
     payrolls: Payroll[];
     advances: SalaryAdvance[];
+    currency: string;
     values: Record<string, string>;
     setValue: (key: string, value: string) => void;
     onCreatePayroll: (event: FormEvent<HTMLFormElement>) => void;
@@ -205,7 +208,7 @@ type PayrollPageProps = {
     onMarkAdvanceRecovered: (advanceId: string) => void;
 };
 
-export const PayrollPage = ({ employees, payrolls, advances, values, setValue, onCreatePayroll, onUpdatePayroll, onDeletePayroll, onPayPayroll, onCancelPayrollPayment, onCreateAdvance, onCancelAdvance, onMarkAdvanceRecovered }: PayrollPageProps) => {
+export const PayrollPage = ({ employees, payrolls, advances, currency, values, setValue, onCreatePayroll, onUpdatePayroll, onDeletePayroll, onPayPayroll, onCancelPayrollPayment, onCreateAdvance, onCancelAdvance, onMarkAdvanceRecovered }: PayrollPageProps) => {
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
     const [payrollContextMenu, setPayrollContextMenu] = useState<{ payrollId: string; x: number; y: number } | null>(null);
     const [payModalTargetId, setPayModalTargetId] = useState<string | null>(null);
@@ -274,10 +277,10 @@ export const PayrollPage = ({ employees, payrolls, advances, values, setValue, o
                             return <tr className="cursor-context-menu border-b border-[#edf4ec] hover:bg-[#f7faf6]" key={payroll.id} onContextMenu={(event) => { event.preventDefault(); setPayrollContextMenu({ payrollId: payroll.id, x: event.clientX, y: event.clientY }); }}>
                                 <td className="py-2 pr-4">{payroll.employee.firstName} {payroll.employee.lastName}</td>
                                 <td className="py-2 pr-4">{payroll.month}</td>
-                                <td className="py-2 pr-4 text-right">{payroll.baseSalary} DH</td>
-                                <td className="py-2 pr-4 text-right">{payroll.netSalary} DH</td>
-                                <td className="py-2 pr-4 text-right">{payroll.amountPaid} DH</td>
-                                <td className="py-2 pr-4 text-right font-semibold">{remaining} DH</td>
+                                <td className="py-2 pr-4 text-right">{formatCurrency(payroll.baseSalary, currency)}</td>
+                                <td className="py-2 pr-4 text-right">{formatCurrency(payroll.netSalary, currency)}</td>
+                                <td className="py-2 pr-4 text-right">{formatCurrency(payroll.amountPaid, currency)}</td>
+                                <td className="py-2 pr-4 text-right font-semibold">{formatCurrency(remaining, currency)}</td>
                                 <td className="py-2 pr-4"><StatusBadge colorClass={payrollStatusColors[payroll.status] ?? 'bg-[#edf4ec] text-[#356743]'} label={payrollStatusLabels[payroll.status] ?? payroll.status} /></td>
                                 <td className="py-2 pl-2"><RowMenuButton onOpen={(x, y) => setPayrollContextMenu({ payrollId: payroll.id, x, y })} /></td>
                             </tr>;
@@ -295,8 +298,8 @@ export const PayrollPage = ({ employees, payrolls, advances, values, setValue, o
             ...(menuPayroll.payments.length === 0 ? [{ label: 'Supprimer (erreur de saisie)', tone: 'danger' as const, onClick: () => { closePayrollMenu(); onDeletePayroll(menuPayroll.id); } }] : [])
         ]} onClose={closePayrollMenu} x={payrollContextMenu.x} y={payrollContextMenu.y} />}
 
-        <PayModal onClose={() => setPayModalTargetId(null)} onConfirm={(amount, method) => { if (payModalTargetId) onPayPayroll(payModalTargetId, amount, method); setPayModalTargetId(null); }} open={payModalTargetId !== null} payroll={payModalTargetId ? payrolls.find((payroll) => payroll.id === payModalTargetId) ?? null : null} />
-        <PayrollPaymentsModal onCancelPayment={(paymentId) => setCancelPaymentTargetId(paymentId)} onClose={() => setPaymentsModalTargetId(null)} open={paymentsModalTargetId !== null} payroll={paymentsModalPayroll} />
+        <PayModal currency={currency} onClose={() => setPayModalTargetId(null)} onConfirm={(amount, method) => { if (payModalTargetId) onPayPayroll(payModalTargetId, amount, method); setPayModalTargetId(null); }} open={payModalTargetId !== null} payroll={payModalTargetId ? payrolls.find((payroll) => payroll.id === payModalTargetId) ?? null : null} />
+        <PayrollPaymentsModal currency={currency} onCancelPayment={(paymentId) => setCancelPaymentTargetId(paymentId)} onClose={() => setPaymentsModalTargetId(null)} open={paymentsModalTargetId !== null} payroll={paymentsModalPayroll} />
         <CancelReasonModal notice="Le versement original est conservé pour l'historique ; son montant sera retiré de la caisse et le salaire redeviendra dû d'autant." onClose={() => setCancelPaymentTargetId(null)} onConfirm={(reason) => { if (cancelPaymentTargetId) onCancelPayrollPayment(cancelPaymentTargetId, reason); setCancelPaymentTargetId(null); setPaymentsModalTargetId(null); }} open={cancelPaymentTargetId !== null} title="Annuler le versement" />
 
         <Modal onClose={() => setCreateModalOpen(false)} open={isCreateModalOpen} title={isEditingPayroll ? 'Modifier le salaire' : 'Nouveau salaire'}>
@@ -330,7 +333,7 @@ export const PayrollPage = ({ employees, payrolls, advances, values, setValue, o
                         {sortedAdvances.map((advance) => <tr className={`cursor-context-menu border-b border-[#edf4ec] hover:bg-[#f7faf6] ${advance.status === 'CANCELLED' ? 'opacity-60' : ''}`} key={advance.id} onContextMenu={(event) => { event.preventDefault(); setAdvanceContextMenu({ advanceId: advance.id, x: event.clientX, y: event.clientY }); }}>
                             <td className="py-2 pr-4">{advance.employee.firstName} {advance.employee.lastName}</td>
                             <td className="py-2 pr-4">{new Date(advance.occurredAt).toLocaleDateString('fr-FR')}</td>
-                            <td className="py-2 pr-4 text-right">{advance.amount} DH</td>
+                            <td className="py-2 pr-4 text-right">{formatCurrency(advance.amount, currency)}</td>
                             <td className="py-2 pr-4">{advance.recoveryMonth}</td>
                             <td className="py-2 pr-4"><StatusBadge colorClass={advanceStatusColors[advance.status] ?? 'bg-[#edf4ec] text-[#356743]'} label={advanceStatusLabels[advance.status] ?? advance.status} /></td>
                             <td className="py-2 pl-2"><RowMenuButton onOpen={(x, y) => setAdvanceContextMenu({ advanceId: advance.id, x, y })} /></td>
@@ -381,7 +384,7 @@ const monthLabel = (key: string) => {
     return label.charAt(0).toUpperCase() + label.slice(1);
 };
 
-export const CashPage = ({ cash, classes }: { cash: CashEntry[]; classes: SchoolClass[] }) => {
+export const CashPage = ({ cash, classes, currency }: { cash: CashEntry[]; classes: SchoolClass[]; currency: string }) => {
     const [monthFilter, setMonthFilter] = useState('');
     const [classFilter, setClassFilter] = useState('');
     const [typeFilter, setTypeFilter] = useState('');
@@ -412,9 +415,9 @@ export const CashPage = ({ cash, classes }: { cash: CashEntry[]; classes: School
 
     return <Shell title="Caisse">
         <div className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-lg bg-[#e5f1e5] p-4">Entrées{hasFilter && <span className="text-xs font-normal"> (filtré)</span>}<strong className="block text-2xl">{income.toFixed(2)} DH</strong></div>
-            <div className="rounded-lg bg-[#fff1df] p-4">Sorties{hasFilter && <span className="text-xs font-normal"> (filtré)</span>}<strong className="block text-2xl">{expenses.toFixed(2)} DH</strong></div>
-            <div className="rounded-lg bg-[#edf4ec] p-4">Solde{hasFilter && <span className="text-xs font-normal"> (filtré)</span>}<strong className="block text-2xl">{(income - expenses).toFixed(2)} DH</strong></div>
+            <div className="rounded-lg bg-[#e5f1e5] p-4">Entrées{hasFilter && <span className="text-xs font-normal"> (filtré)</span>}<strong className="block text-2xl">{formatCurrency(income, currency)}</strong></div>
+            <div className="rounded-lg bg-[#fff1df] p-4">Sorties{hasFilter && <span className="text-xs font-normal"> (filtré)</span>}<strong className="block text-2xl">{formatCurrency(expenses, currency)}</strong></div>
+            <div className="rounded-lg bg-[#edf4ec] p-4">Solde{hasFilter && <span className="text-xs font-normal"> (filtré)</span>}<strong className="block text-2xl">{formatCurrency(income - expenses, currency)}</strong></div>
         </div>
         <Panel>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -458,7 +461,7 @@ export const CashPage = ({ cash, classes }: { cash: CashEntry[]; classes: School
                             <td className={`py-2 pr-4 ${item.cancelled ? 'line-through' : ''}`}>{item.description}</td>
                             <td className="py-2 pr-4 text-[#6a8d72]">{item.linkedName ?? '—'}{item.className ? <span> · {item.className}</span> : ''}</td>
                             <td className="py-2 pr-4 text-[#6a8d72]">{item.feePeriod ?? '—'}</td>
-                            <td className={`py-2 pr-4 text-right font-medium ${item.type === 'EXPENSE' ? 'text-[#a65d36]' : 'text-[#356743]'}`}>{item.type === 'EXPENSE' ? '-' : '+'}{item.amount} DH</td>
+                            <td className={`py-2 pr-4 text-right font-medium ${item.type === 'EXPENSE' ? 'text-[#a65d36]' : 'text-[#356743]'}`}>{item.type === 'EXPENSE' ? '-' : '+'}{formatCurrency(item.amount, currency)}</td>
                             <td className="py-2 pr-4">{item.cancelled ? <StatusBadge colorClass="bg-[#f4e6e1] text-[#a3372f]" label="Annulé" /> : <StatusBadge colorClass="bg-[#e5f1e5] text-[#356743]" label="Actif" />}</td>
                         </tr>)}
                     </tbody>
