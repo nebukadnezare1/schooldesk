@@ -120,23 +120,23 @@ export function LandingPage() {
                 <nav className="hidden items-center gap-8 font-semibold text-gray-700 md:flex">
                     <a className="hover:text-[#2d6a4f]" href="#features">Fonctionnalités</a>
                     <a className="hover:text-[#2d6a4f]" href="#how-it-works">Comment ça marche</a>
-                    <a className="hover:text-[#2d6a4f]" href="#testimonials">Avis</a>
+                    <a className="hover:text-[#2d6a4f]" href="#open-source">Open Source</a>
                     <a className="hover:text-[#2d6a4f]" href="#faq">FAQ</a>
                 </nav>
                 <div className="hidden items-center gap-4 md:flex">
                     <Link className="rounded-xl px-4 py-2 font-bold text-[#2d6a4f] hover:text-[#27523f]" to="/login">Se connecter</Link>
-                    <Link className="rounded-2xl bg-[#2d6a4f] px-6 py-3 font-bold text-white shadow-lg shadow-[#2d6a4f]/20 transition-all hover:-translate-y-0.5 hover:bg-[#27523f] hover:shadow-[#2d6a4f]/40" to="/register">Créer votre école <i className="fa-solid fa-arrow-right ml-2 text-sm" /></Link>
+                    <Link className="rounded-2xl bg-[#2d6a4f] px-6 py-3 font-bold text-white shadow-lg shadow-[#2d6a4f]/20 transition-all hover:-translate-y-0.5 hover:bg-[#27523f] hover:shadow-[#2d6a4f]/40" to="/register">Créer mon école <i className="fa-solid fa-arrow-right ml-2 text-sm" /></Link>
                 </div>
                 <button aria-label="Menu" className="text-2xl text-[#2d6a4f] md:hidden" onClick={() => setMobileMenuOpen((open) => !open)} type="button"><i className="fa-solid fa-bars" /></button>
             </div>
             {mobileMenuOpen && <div className="space-y-3 border-b border-[#e1efe3] bg-white px-6 py-4 md:hidden">
                 <a className="block py-2 font-semibold text-gray-700" href="#features">Fonctionnalités</a>
                 <a className="block py-2 font-semibold text-gray-700" href="#how-it-works">Comment ça marche</a>
-                <a className="block py-2 font-semibold text-gray-700" href="#testimonials">Avis</a>
+                <a className="block py-2 font-semibold text-gray-700" href="#open-source">Open Source</a>
                 <a className="block py-2 font-semibold text-gray-700" href="#faq">FAQ</a>
                 <div className="space-y-2 border-t border-gray-100 pt-4">
                     <Link className="block w-full rounded-xl bg-[#e1efe3] py-3 text-center font-bold text-[#27523f]" to="/login">Se connecter</Link>
-                    <Link className="block w-full rounded-xl bg-[#2d6a4f] py-3 text-center font-bold text-white shadow" to="/register">Créer votre école</Link>
+                    <Link className="block w-full rounded-xl bg-[#2d6a4f] py-3 text-center font-bold text-white shadow" to="/register">Créer mon école</Link>
                 </div>
             </div>}
         </header>
@@ -148,7 +148,7 @@ export function LandingPage() {
                     <div className="space-y-6 text-center lg:col-span-6 lg:text-left">
                         <div className="inline-flex items-center gap-2 rounded-full border border-[#c4e0ca] bg-[#e1efe3] px-4 py-2 text-sm font-bold text-[#27523f]">
                             <span className="h-2 w-2 animate-pulse rounded-full bg-[#489350]" />
-                            Le logiciel #1 pensé pour toutes les écoles
+                            Gestion scolaire simple, complète et open source
                         </div>
                         <h1 className="text-4xl font-bold leading-tight text-gray-900 sm:text-5xl lg:text-6xl">
                             Gérez votre école <br className="hidden sm:inline" />
@@ -158,9 +158,10 @@ export function LandingPage() {
                             De l'inscription des élèves au suivi des présences, des cotisations aux fiches de paie : découvrez l'outil tout-en-un simple, intuitif et 100% sécurisé.
                         </p>
                         <div className="flex flex-col justify-center gap-4 pt-2 sm:flex-row lg:justify-start">
-                            <Link className="flex items-center justify-center gap-3 rounded-2xl bg-[#2d6a4f] px-8 py-4 text-lg font-bold text-white shadow-xl shadow-[#2d6a4f]/30 transition-all hover:-translate-y-1 hover:bg-[#27523f] hover:shadow-[#2d6a4f]/50" to="/register"><i className="fa-solid fa-rocket" /> Commencer Gratuitement</Link>
-                            <a className="flex items-center justify-center gap-2 rounded-2xl border-2 border-[#c4e0ca] bg-white px-8 py-4 text-lg font-bold text-[#27523f] shadow-sm hover:bg-[#f2f8f3]" href="#how-it-works"><i className="fa-solid fa-circle-play text-[#38773e]" /> Voir la Démo</a>
+                            <Link className="flex items-center justify-center gap-3 rounded-2xl bg-[#2d6a4f] px-8 py-4 text-lg font-bold text-white shadow-xl shadow-[#2d6a4f]/30 transition-all hover:-translate-y-1 hover:bg-[#27523f] hover:shadow-[#2d6a4f]/50" to="/register"><i className="fa-solid fa-rocket" /> Créer mon école</Link>
+                            <a className="flex items-center justify-center gap-2 rounded-2xl border-2 border-[#c4e0ca] bg-white px-8 py-4 text-lg font-bold text-[#27523f] shadow-sm hover:bg-[#f2f8f3]" href="https://github.com/nebukadnezare1/schooldesk" rel="noopener noreferrer" target="_blank"><i className="fa-brands fa-github" /> Installer SchoolDesk</a>
                         </div>
+                        <p className="text-sm text-gray-500">Utilisez SchoolDesk en ligne en un clic, ou hébergez votre propre instance à partir du code source.</p>
                         <div className="grid grid-cols-3 gap-4 border-t border-[#c4e0ca]/60 pt-6 text-center lg:text-left">
                             <div><div className="font-title text-2xl font-bold text-[#2d6a4f]">100%</div><div className="text-xs font-semibold text-gray-500">Conforme &amp; Intuitif</div></div>
                             <div><div className="font-title text-2xl font-bold text-[#2d6a4f]">10 étapes</div><div className="text-xs font-semibold text-gray-500">Prise en main express</div></div>
@@ -258,10 +259,10 @@ export function LandingPage() {
                     <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">Utilisez SchoolDesk en 10 étapes simples</h2>
                     <p className="text-lg text-gray-600">Une prise en main ultra fluide dès le premier jour d'utilisation.</p>
                 </div>
-                <div className="mb-8 grid grid-cols-2 gap-2 sm:grid-cols-5 lg:grid-cols-10">
-                    {landingSteps.map((candidate) => <button className={`rounded-xl border p-2 text-center text-xs font-bold transition-all ${candidate.id === activeStep ? 'border-[#2d6a4f] bg-white text-[#2d6a4f]' : 'border-[#c4e0ca] bg-white text-gray-600 hover:border-[#2d6a4f]'}`} key={candidate.id} onClick={() => setActiveStep(candidate.id)} type="button">{candidate.id}. {candidate.title.split(' ').slice(0, 2).join(' ')}</button>)}
+                <div className="mb-8 flex flex-wrap items-center justify-center gap-2">
+                    {landingSteps.map((candidate) => <button aria-current={candidate.id === activeStep} aria-label={`Étape ${candidate.id} : ${candidate.title}`} className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border text-sm font-bold transition-all sm:h-11 sm:w-11 ${candidate.id === activeStep ? 'border-[#2d6a4f] bg-[#2d6a4f] text-white' : 'border-[#c4e0ca] bg-white text-gray-600 hover:border-[#2d6a4f]'}`} key={candidate.id} onClick={() => setActiveStep(candidate.id)} type="button">{candidate.id}</button>)}
                 </div>
-                <div className="grid min-h-[300px] items-center gap-8 rounded-3xl border border-[#c4e0ca] bg-white p-8 shadow-xl sm:p-12 md:grid-cols-12">
+                <div className="grid min-h-[300px] items-center gap-8 rounded-3xl border border-[#c4e0ca] bg-white p-6 shadow-xl sm:p-8 md:grid-cols-12 md:p-12">
                     <div className="space-y-4 md:col-span-7">
                         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e1efe3] font-title text-2xl font-bold text-[#2d6a4f]">{step.id}</div>
                         <h3 className="font-title text-2xl font-bold text-gray-900 sm:text-3xl">{step.title}</h3>
@@ -273,29 +274,10 @@ export function LandingPage() {
                         <div className="text-xs text-gray-500">Prise en main en moins de 3 minutes</div>
                     </div>
                 </div>
-            </div>
-        </section>
-
-        {/* Testimonials */}
-        <section className="bg-white py-20" id="testimonials">
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div className="mx-auto mb-16 max-w-3xl space-y-4 text-center">
-                    <span className="rounded-full bg-[#e1efe3] px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-[#27523f]">Témoignages</span>
-                    <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">Adopté par des directeurs d'écoles passionnés</h2>
-                </div>
-                <div className="grid gap-8 md:grid-cols-3">
-                    {[
-                        { initials: 'ML', name: 'Mme Amina L.', role: "Directrice d'école - Casablanca", quote: "Avant SchoolDesk, le suivi des frais de scolarité était un vrai casse-tête à la fin de chaque mois. Aujourd'hui, tout est clair, rapide et nos reçus sont très professionnels !" },
-                        { initials: 'YK', name: 'M. Youssef K.', role: "Directeur d'établissement scolaire - Rabat", quote: "La gestion de l'appel quotidien et le calcul des salaires des assistantes me font gagner au moins 5 heures par semaine. Un outil indispensable !" },
-                        { initials: 'SB', name: 'Mme Salma B.', role: "Gestionnaire d'Établissement - Marrakech", quote: "L'interface est super simple. Même nos enseignantes les moins à l'aise avec la technologie l'ont adoptée sans aucune difficulté." }
-                    ].map((item) => <div className="space-y-4 rounded-3xl border border-[#e1efe3] bg-[#f2f8f3]/40 p-8" key={item.name}>
-                        <div className="flex gap-1 text-sm text-amber-400"><i className="fa-solid fa-star" /><i className="fa-solid fa-star" /><i className="fa-solid fa-star" /><i className="fa-solid fa-star" /><i className="fa-solid fa-star" /></div>
-                        <p className="italic text-gray-700">"{item.quote}"</p>
-                        <div className="flex items-center gap-3 border-t border-[#c4e0ca]/50 pt-4">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#c4e0ca] font-title font-bold text-[#27523f]">{item.initials}</div>
-                            <div><div className="text-sm font-bold text-gray-900">{item.name}</div><div className="text-xs text-gray-500">{item.role}</div></div>
-                        </div>
-                    </div>)}
+                <div className="mt-6 flex items-center justify-between gap-3">
+                    <button className="flex min-h-[44px] items-center gap-2 rounded-xl border border-[#c4e0ca] bg-white px-4 py-2.5 text-sm font-bold text-[#27523f] transition hover:bg-[#f2f8f3] disabled:cursor-not-allowed disabled:opacity-40" disabled={activeStep === 1} onClick={() => setActiveStep((value) => Math.max(1, value - 1))} type="button"><i className="fa-solid fa-arrow-left" /> Précédent</button>
+                    <span className="text-sm font-semibold text-gray-500">Étape {activeStep} / {landingSteps.length}</span>
+                    <button className="flex min-h-[44px] items-center gap-2 rounded-xl border border-[#c4e0ca] bg-white px-4 py-2.5 text-sm font-bold text-[#27523f] transition hover:bg-[#f2f8f3] disabled:cursor-not-allowed disabled:opacity-40" disabled={activeStep === landingSteps.length} onClick={() => setActiveStep((value) => Math.min(landingSteps.length, value + 1))} type="button">Suivant <i className="fa-solid fa-arrow-right" /></button>
                 </div>
             </div>
         </section>
@@ -305,10 +287,11 @@ export function LandingPage() {
             <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
                 <span className="rounded-full bg-[#2d6a4f] px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-white">100% Gratuit &amp; Open Source</span>
                 <h2 className="mt-4 text-3xl font-bold text-gray-900 sm:text-4xl">Aucun abonnement, aucune surprise.</h2>
-                <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600">SchoolDesk est un logiciel libre : le code source est public, gratuit à utiliser et à héberger vous-même. Créez votre école sans engagement ni carte bancaire.</p>
+                <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600">Gratuit. Open source. Sans abonnement. Utilisez SchoolDesk en ligne, ou hébergez votre propre instance.</p>
                 <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-                    <Link className="flex items-center justify-center gap-3 rounded-2xl bg-[#2d6a4f] px-8 py-4 text-lg font-bold text-white shadow-xl shadow-[#2d6a4f]/30 transition-all hover:-translate-y-1 hover:bg-[#27523f] hover:shadow-[#2d6a4f]/50" to="/register"><i className="fa-solid fa-rocket" /> Commencer Gratuitement</Link>
+                    <Link className="flex items-center justify-center gap-3 rounded-2xl bg-[#2d6a4f] px-8 py-4 text-lg font-bold text-white shadow-xl shadow-[#2d6a4f]/30 transition-all hover:-translate-y-1 hover:bg-[#27523f] hover:shadow-[#2d6a4f]/50" to="/register"><i className="fa-solid fa-rocket" /> Créer mon école</Link>
                 </div>
+                <a className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#27523f] hover:text-[#2d6a4f] hover:underline" href="https://github.com/nebukadnezare1/schooldesk" rel="noopener noreferrer" target="_blank"><i className="fa-brands fa-github" /> Voir le code sur GitHub</a>
             </div>
         </section>
 
@@ -336,7 +319,7 @@ export function LandingPage() {
             <div className="relative z-10 mx-auto max-w-5xl space-y-6 px-4 text-center sm:px-6 lg:px-8">
                 <h2 className="font-title text-3xl font-bold sm:text-5xl">Prêt à moderniser la gestion de votre école ?</h2>
                 <p className="mx-auto max-w-2xl text-lg text-[#e1efe3]">Rejoignez les établissements qui simplifient leur quotidien avec SchoolDesk.</p>
-                <Link className="inline-block rounded-2xl bg-white px-8 py-4 text-lg font-bold text-[#27523f] shadow-xl transition-all hover:scale-105 hover:bg-[#f2f8f3]" to="/register">Créer votre école gratuitement</Link>
+                <Link className="inline-block rounded-2xl bg-white px-8 py-4 text-lg font-bold text-[#27523f] shadow-xl transition-all hover:scale-105 hover:bg-[#f2f8f3]" to="/register">Créer mon école</Link>
             </div>
         </section>
 
@@ -366,9 +349,9 @@ export function LandingPage() {
                 <div>
                     <h4 className="mb-4 text-sm font-bold text-white">Soutenir le projet</h4>
                     <p className="mb-3 text-xs leading-relaxed">SchoolDesk est gratuit et open source. Si l'application vous rend service, un petit café est toujours apprécié.</p>
-                    <div className="flex flex-col items-start gap-3">
+                    <div className="flex flex-col items-center gap-3 md:items-start">
                         <a href="https://www.paypal.com/ncp/payment/R8UA9698VQBNC" rel="noopener noreferrer" target="_blank">
-                            <img alt="QR code PayPal — offrir un café à SchoolDesk" className="h-40 w-40 rounded-lg border border-white/20 bg-white p-1.5" src={coffeeQr} />
+                            <img alt="QR code PayPal — offrir un café à SchoolDesk" className="w-40 rounded-lg border border-white/20 bg-white p-1.5" src={coffeeQr} />
                         </a>
                         <a className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20" href="https://www.paypal.com/ncp/payment/R8UA9698VQBNC" rel="noopener noreferrer" target="_blank">
                             <i className="fa-solid fa-mug-hot text-[#6eb175]" /> Offrir un café
@@ -376,9 +359,10 @@ export function LandingPage() {
                     </div>
                 </div>
             </div>
-            <div className="mx-auto flex max-w-7xl flex-col items-center gap-3 border-t border-gray-800 px-4 pt-6 text-center text-xs sm:px-6 lg:px-8">
+            <div className="mx-auto flex max-w-7xl flex-col items-center gap-2 border-t border-gray-800 px-4 pt-6 text-center text-xs sm:px-6 lg:px-8">
                 <img alt="Fetouaki A. — Solutions Globales et Innovation" className="h-16 w-16 rounded-lg" src={fetouakiLogo} />
-                <p>© 2026 SchoolDesk — Créé par Fetouaki A. (DG Design). Tous droits réservés.</p>
+                <a className="font-semibold text-gray-300 hover:text-white hover:underline" href="https://github.com/nebukadnezare1/schooldesk/blob/main/LICENSE" rel="noopener noreferrer" target="_blank">SchoolDesk — Logiciel libre sous licence MIT</a>
+                <p>© 2026 — Créé par Fetouaki A. (DG Design)</p>
             </div>
         </footer>
     </div>;
