@@ -6,7 +6,7 @@ storage/backups/*
 !storage/documents/.gitkeep
 !storage/backups/.gitkeep
 
-.claude/settings.local.json
+.claude/
 npm-debug.log*
 *.log
 .DS_Store

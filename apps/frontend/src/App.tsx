@@ -8,6 +8,7 @@ import { FeeReceiptsPage, PayslipPage, ReceiptPage } from './receipt-page';
 import type { AcademicYear, CashEntry, DashboardSummary, Employee, Expense, ExpenseCategory, FinanceStudentFee, FinanceSummaryEntry, Payment, Payroll, SalaryAdvance, SchoolClass, Settings, Student, UnpaidFee } from './types';
 import { apiUrl } from './api-url';
 import coffeeQr from './assets/coffee-qr.png';
+import fetouakiLogo from './assets/fetouaki-logo.jpg';
 // Date locale (année-mois-jour du fuseau du navigateur) — pas .toISOString().slice(0, 10), qui
 // convertit d'abord en UTC et peut décaler d'un jour près de minuit dans un fuseau UTC+.
 const localDateString = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -375,7 +376,10 @@ export function LandingPage() {
                     </div>
                 </div>
             </div>
-            <div className="mx-auto max-w-7xl border-t border-gray-800 px-4 pt-6 text-center text-xs sm:px-6 lg:px-8">© 2026 SchoolDesk — Créé par Fetouaki A. (DG Design). Tous droits réservés.</div>
+            <div className="mx-auto flex max-w-7xl flex-col items-center gap-3 border-t border-gray-800 px-4 pt-6 text-center text-xs sm:px-6 lg:px-8">
+                <img alt="Fetouaki A. — Solutions Globales et Innovation" className="h-16 w-16 rounded-lg" src={fetouakiLogo} />
+                <p>© 2026 SchoolDesk — Créé par Fetouaki A. (DG Design). Tous droits réservés.</p>
+            </div>
         </footer>
     </div>;
 }
