@@ -7,6 +7,7 @@ import { DashboardPage } from './phase8-pages';
 import { FeeReceiptsPage, PayslipPage, ReceiptPage } from './receipt-page';
 import type { AcademicYear, CashEntry, DashboardSummary, Employee, Expense, ExpenseCategory, FinanceStudentFee, FinanceSummaryEntry, Payment, Payroll, SalaryAdvance, SchoolClass, Settings, Student, UnpaidFee } from './types';
 import { apiUrl } from './api-url';
+import coffeeQr from './assets/coffee-qr.png';
 // Date locale (année-mois-jour du fuseau du navigateur) — pas .toISOString().slice(0, 10), qui
 // convertit d'abord en UTC et peut décaler d'un jour près de minuit dans un fuseau UTC+.
 const localDateString = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -364,9 +365,14 @@ export function LandingPage() {
                 <div>
                     <h4 className="mb-4 text-sm font-bold text-white">Soutenir le projet</h4>
                     <p className="mb-3 text-xs leading-relaxed">SchoolDesk est gratuit et open source. Si l'application vous rend service, un petit café est toujours apprécié.</p>
-                    <a className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20" href="https://www.paypal.com/ncp/payment/R8UA9698VQBNC" rel="noopener noreferrer" target="_blank">
-                        <i className="fa-solid fa-mug-hot text-[#6eb175]" /> Offrir un café
-                    </a>
+                    <div className="flex items-center gap-3">
+                        <a href="https://www.paypal.com/ncp/payment/R8UA9698VQBNC" rel="noopener noreferrer" target="_blank">
+                            <img alt="QR code PayPal — offrir un café à SchoolDesk" className="h-20 w-20 rounded-lg border border-white/20 bg-white p-1" src={coffeeQr} />
+                        </a>
+                        <a className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20" href="https://www.paypal.com/ncp/payment/R8UA9698VQBNC" rel="noopener noreferrer" target="_blank">
+                            <i className="fa-solid fa-mug-hot text-[#6eb175]" /> Offrir un café
+                        </a>
+                    </div>
                 </div>
             </div>
             <div className="mx-auto max-w-7xl border-t border-gray-800 px-4 pt-6 text-center text-xs sm:px-6 lg:px-8">© 2026 SchoolDesk. Tous droits réservés.</div>
