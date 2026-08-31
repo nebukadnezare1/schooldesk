@@ -35,6 +35,18 @@ if ! command -v rsync >/dev/null 2>&1; then
     exit 1
 fi
 
+# Détecte la commande Compose disponible sur ce runner (plugin "docker compose" v2,
+# sinon le binaire historique "docker-compose" v1 — présent sur Azhar).
+if docker compose version >/dev/null 2>&1; then
+    COMPOSE=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE=(docker-compose)
+else
+    echo "Erreur : ni 'docker compose' (plugin v2) ni 'docker-compose' (v1) ne sont disponibles sur ce runner." >&2
+    exit 1
+fi
+echo "Commande Compose utilisée : ${COMPOSE[*]}"
+
 log "Détection d'une nouvelle migration Prisma"
 OLD_MIGRATIONS_DIR="$DEPLOY_DIR/apps/backend/prisma/migrations"
 NEW_MIGRATIONS_DIR="$SOURCE_DIR/apps/backend/prisma/migrations"
@@ -56,7 +68,7 @@ if [ "$MIGRATION_PENDING" = true ]; then
     # Les identifiants sont lus par pg_dump DANS le conteneur, depuis les variables
     # d'environnement déjà posées par docker-compose.yml à partir du .env du NAS —
     # ce script ne les manipule ni ne les affiche jamais.
-    ( cd "$DEPLOY_DIR" && docker compose exec -T postgres sh -c \
+    ( cd "$DEPLOY_DIR" && "${COMPOSE[@]}" exec -T postgres sh -c \
         'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
         > "$BACKUP_FILE" )
     if [ ! -s "$BACKUP_FILE" ]; then
@@ -76,17 +88,17 @@ rsync -a --delete \
     "$SOURCE_DIR"/ "$DEPLOY_DIR"/
 
 log "Build des images Docker"
-( cd "$DEPLOY_DIR" && docker compose build )
+( cd "$DEPLOY_DIR" && "${COMPOSE[@]}" build )
 
 log "Recréation des conteneurs (jamais down -v, jamais docker volume rm)"
-( cd "$DEPLOY_DIR" && docker compose up -d )
+( cd "$DEPLOY_DIR" && "${COMPOSE[@]}" up -d )
 
 log "Vérification de l'état de santé (jusqu'à 90s)"
 SERVICES="postgres backend frontend"
 DEADLINE=$((SECONDS + 90))
 for service in $SERVICES; do
     while true; do
-        CID=$(cd "$DEPLOY_DIR" && docker compose ps -q "$service")
+        CID=$(cd "$DEPLOY_DIR" && "${COMPOSE[@]}" ps -q "$service")
         STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$CID" 2>/dev/null || echo "unknown")
         if [ "$STATUS" = "healthy" ]; then
             echo "$service : healthy"
@@ -94,7 +106,7 @@ for service in $SERVICES; do
         fi
         if [ "$SECONDS" -ge "$DEADLINE" ]; then
             echo "Erreur : $service n'est pas devenu healthy à temps (dernier statut : $STATUS)." >&2
-            echo "Aucune action destructive effectuée — inspecter manuellement (docker compose logs $service)." >&2
+            echo "Aucune action destructive effectuée — inspecter manuellement (${COMPOSE[*]} logs $service)." >&2
             exit 1
         fi
         sleep 5
