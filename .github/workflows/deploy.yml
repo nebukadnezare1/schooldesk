@@ -1,0 +1,30 @@
+name: Déploiement NAS Azhar
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# Un déploiement à la fois : si deux push arrivent proches, le second attend que le
+# premier soit terminé plutôt que de l'interrompre en plein milieu.
+concurrency:
+  group: nas-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    # Cible précisément le runner enregistré sur le NAS (label "azhar"), jamais un runner
+    # hébergé par GitHub — le déploiement doit s'exécuter directement sur la machine cible.
+    runs-on: [self-hosted, azhar]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Déployer sur /home/azhar/SchoolDesk
+        run: bash scripts/deploy-nas.sh
+        env:
+          DEPLOY_DIR: /home/azhar/SchoolDesk
+          BACKUP_DIR: /home/azhar/schooldesk-pre-deploy-backups
