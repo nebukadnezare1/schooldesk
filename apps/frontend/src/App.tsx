@@ -375,7 +375,7 @@ export function LandingPage() {
                     </div>
                 </div>
             </div>
-            <div className="mx-auto max-w-7xl border-t border-gray-800 px-4 pt-6 text-center text-xs sm:px-6 lg:px-8">© 2026 SchoolDesk. Tous droits réservés.</div>
+            <div className="mx-auto max-w-7xl border-t border-gray-800 px-4 pt-6 text-center text-xs sm:px-6 lg:px-8">© 2026 SchoolDesk — Créé par Fetouaki A. (DG Design). Tous droits réservés.</div>
         </footer>
     </div>;
 }
@@ -509,7 +509,7 @@ const AboutPage = () => <PageShell eyebrow="SchoolDesk" title="À propos">
             <dl className="mt-2 grid gap-3 text-sm sm:grid-cols-2">
                 <div><dt className="text-[#6a8d72]">Application</dt><dd className="font-medium text-[#18352b]">SchoolDesk</dd></div>
                 <div><dt className="text-[#6a8d72]">Version</dt><dd className="font-medium text-[#18352b]">0.1.0</dd></div>
-                <div><dt className="text-[#6a8d72]">Créé par</dt><dd className="font-medium text-[#18352b]">DG Design</dd></div>
+                <div><dt className="text-[#6a8d72]">Créé par</dt><dd className="font-medium text-[#18352b]">Fetouaki A. — DG Design</dd></div>
                 <div><dt className="text-[#6a8d72]">Contact</dt><dd className="font-medium text-[#18352b]"><a className="underline" href="mailto:ikaoutef@gmail.com">ikaoutef@gmail.com</a></dd></div>
             </dl>
         </div>
