@@ -85,9 +85,9 @@ const landingSteps: LandingStep[] = [
 ];
 
 const landingFaqs = [
-    { q: "Puis-je tester l'application gratuitement ?", a: "Oui ! Nous offrons une période d'essai gratuite de 14 jours sans aucun engagement ni carte bancaire requise. Vous pouvez configurer vos classes et tester toutes les fonctionnalités." },
+    { q: "Puis-je tester l'application gratuitement ?", a: "Oui, sans aucune limite de durée : SchoolDesk est gratuit et open source. Créez votre école en quelques secondes et configurez vos classes, aucune carte bancaire ni engagement n'est jamais demandé." },
     { q: "L'application fonctionne-t-elle sur téléphone et tablette ?", a: "Absolument. SchoolDesk est accessible depuis n'importe quel navigateur web sur votre ordinateur, tablette ou smartphone." },
-    { q: "Mes données sont-elles en sécurité ?", a: "Toutes vos données sont sauvegardées quotidiennement sur des serveurs hautement sécurisés et cryptés. Vous êtes le seul propriétaire de vos données." }
+    { q: "Mes données sont-elles en sécurité ?", a: "Oui : chaque école est totalement isolée des autres, et vous restez seul propriétaire de vos données puisque vous hébergez l'application vous-même. Un export/import complet de vos données est disponible à tout moment depuis les Paramètres." }
 ];
 
 export function LandingPage() {
