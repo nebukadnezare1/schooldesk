@@ -365,9 +365,9 @@ export function LandingPage() {
                 <div>
                     <h4 className="mb-4 text-sm font-bold text-white">Soutenir le projet</h4>
                     <p className="mb-3 text-xs leading-relaxed">SchoolDesk est gratuit et open source. Si l'application vous rend service, un petit café est toujours apprécié.</p>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col items-start gap-3">
                         <a href="https://www.paypal.com/ncp/payment/R8UA9698VQBNC" rel="noopener noreferrer" target="_blank">
-                            <img alt="QR code PayPal — offrir un café à SchoolDesk" className="h-20 w-20 rounded-lg border border-white/20 bg-white p-1" src={coffeeQr} />
+                            <img alt="QR code PayPal — offrir un café à SchoolDesk" className="h-40 w-40 rounded-lg border border-white/20 bg-white p-1.5" src={coffeeQr} />
                         </a>
                         <a className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20" href="https://www.paypal.com/ncp/payment/R8UA9698VQBNC" rel="noopener noreferrer" target="_blank">
                             <i className="fa-solid fa-mug-hot text-[#6eb175]" /> Offrir un café
