@@ -8,6 +8,7 @@ import { FeeReceiptsPage, PayslipPage, ReceiptPage } from './receipt-page';
 import type { AcademicYear, CashEntry, DashboardSummary, Employee, Expense, ExpenseCategory, FinanceStudentFee, FinanceSummaryEntry, Payment, Payroll, SalaryAdvance, SchoolClass, Settings, Student, UnpaidFee } from './types';
 import { apiUrl } from './api-url';
 import { COUNTRY_CURRENCY, countryOptions, currencyOptions, detectCountryFromTimezone } from './currency';
+import { useInstallPrompt } from './pwa';
 import coffeeQr from './assets/coffee-qr.png';
 import fetouakiLogo from './assets/fetouaki-logo.jpg';
 // Date locale (année-mois-jour du fuseau du navigateur) — pas .toISOString().slice(0, 10), qui
@@ -516,23 +517,34 @@ const GettingStartedPage = ({ onOpenHelp }: { onOpenHelp: () => void }) => <Page
     </div>
 </PageShell>;
 
-const AboutPage = () => <PageShell eyebrow="SchoolDesk" title="À propos">
-    <div className="space-y-6">
-        <div>
-            <h2 className="text-lg font-semibold text-[#18352b]">L'application</h2>
-            <p className="mt-2 text-sm text-[#557064]">SchoolDesk est l'outil de gestion quotidienne de l'école : élèves, classes, présences, personnel, paiements, impayés, dépenses, salaires et caisse, réunis dans un seul endroit simple à utiliser.</p>
+const AboutPage = () => {
+    const { canInstall, showIOSHint, promptInstall } = useInstallPrompt();
+    return <PageShell eyebrow="SchoolDesk" title="À propos">
+        <div className="space-y-6">
+            <div>
+                <h2 className="text-lg font-semibold text-[#18352b]">L'application</h2>
+                <p className="mt-2 text-sm text-[#557064]">SchoolDesk est l'outil de gestion quotidienne de l'école : élèves, classes, présences, personnel, paiements, impayés, dépenses, salaires et caisse, réunis dans un seul endroit simple à utiliser.</p>
+            </div>
+            <div>
+                <h2 className="text-lg font-semibold text-[#18352b]">Informations</h2>
+                <dl className="mt-2 grid gap-3 text-sm sm:grid-cols-2">
+                    <div><dt className="text-[#6a8d72]">Application</dt><dd className="font-medium text-[#18352b]">SchoolDesk</dd></div>
+                    <div><dt className="text-[#6a8d72]">Version</dt><dd className="font-medium text-[#18352b]">0.1.0</dd></div>
+                    <div><dt className="text-[#6a8d72]">Créé par</dt><dd className="font-medium text-[#18352b]">Fetouaki A. — DG Design</dd></div>
+                    <div><dt className="text-[#6a8d72]">Contact</dt><dd className="font-medium text-[#18352b]"><a className="underline" href="mailto:ikaoutef@gmail.com">ikaoutef@gmail.com</a></dd></div>
+                </dl>
+            </div>
+            {(canInstall || showIOSHint) && <div>
+                <h2 className="text-lg font-semibold text-[#18352b]">Application installable</h2>
+                {canInstall && <>
+                    <p className="mt-2 text-sm text-[#557064]">Installez SchoolDesk sur cet appareil pour l'ouvrir comme une application, avec une icône sur votre écran d'accueil ou votre bureau.</p>
+                    <button className="mt-3 rounded-lg bg-[#356743] px-4 py-2 text-sm font-medium text-white" onClick={promptInstall} type="button">Installer l'application</button>
+                </>}
+                {showIOSHint && <p className="mt-2 text-sm text-[#557064]">Sur iPhone/iPad : appuyez sur <strong>Partager</strong> (icône <i className="fa-solid fa-arrow-up-from-bracket" />) puis <strong>Sur l'écran d'accueil</strong>.</p>}
+            </div>}
         </div>
-        <div>
-            <h2 className="text-lg font-semibold text-[#18352b]">Informations</h2>
-            <dl className="mt-2 grid gap-3 text-sm sm:grid-cols-2">
-                <div><dt className="text-[#6a8d72]">Application</dt><dd className="font-medium text-[#18352b]">SchoolDesk</dd></div>
-                <div><dt className="text-[#6a8d72]">Version</dt><dd className="font-medium text-[#18352b]">0.1.0</dd></div>
-                <div><dt className="text-[#6a8d72]">Créé par</dt><dd className="font-medium text-[#18352b]">Fetouaki A. — DG Design</dd></div>
-                <div><dt className="text-[#6a8d72]">Contact</dt><dd className="font-medium text-[#18352b]"><a className="underline" href="mailto:ikaoutef@gmail.com">ikaoutef@gmail.com</a></dd></div>
-            </dl>
-        </div>
-    </div>
-</PageShell>;
+    </PageShell>;
+};
 
 function AppLayout({ user, onLogout, message, onClearMessage, children, isHelpOpen, onCloseHelp }: { user: User; onLogout: () => void; message: string; onClearMessage: () => void; children: ReactNode; isHelpOpen: boolean; onCloseHelp: () => void }) {
     const links = [['/', 'Dashboard'], ['/staff', 'Personnel'], ['/classes', 'Classes'], ['/students', 'Élèves'], ['/attendance', 'Présences'], ['/payments', 'Paiements'], ['/unpaid', 'Impayés'], ['/expenses', 'Dépenses'], ['/payroll', 'Salaires'], ['/cash', 'Caisse'], ['/settings', 'Paramètres'], ['/getting-started', 'Comment commencer'], ['/about', 'À propos']];
