@@ -356,13 +356,17 @@ export function LandingPage() {
                 <div>
                     <h4 className="mb-4 text-sm font-bold text-white">Contact</h4>
                     <ul className="space-y-2 text-xs">
-                        <li><i className="fa-solid fa-phone mr-2 text-[#6eb175]" /> +212 6 62 62 62 62</li>
-                        <li><i className="fa-solid fa-envelope mr-2 text-[#6eb175]" /> contact@ecolegarden.com</li>
+                        <li><i className="fa-solid fa-phone mr-2 text-[#6eb175]" /> <a className="hover:text-white" href="tel:+212662156281">+212 6 62 15 62 81</a> (Maroc)</li>
+                        <li><i className="fa-solid fa-phone mr-2 text-[#6eb175]" /> <a className="hover:text-white" href="tel:+32467808996">+32 467 80 89 96</a> (Belgique)</li>
+                        <li><i className="fa-solid fa-envelope mr-2 text-[#6eb175]" /> <a className="hover:text-white" href="mailto:ikaoutef@gmail.com">ikaoutef@gmail.com</a></li>
                     </ul>
                 </div>
                 <div>
-                    <h4 className="mb-4 text-sm font-bold text-white">Langues</h4>
-                    <p className="text-xs">Support multilingue : Français, Arabe, Amazigh.</p>
+                    <h4 className="mb-4 text-sm font-bold text-white">Soutenir le projet</h4>
+                    <p className="mb-3 text-xs leading-relaxed">SchoolDesk est gratuit et open source. Si l'application vous rend service, un petit café est toujours apprécié.</p>
+                    <a className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20" href="https://www.paypal.com/ncp/payment/R8UA9698VQBNC" rel="noopener noreferrer" target="_blank">
+                        <i className="fa-solid fa-mug-hot text-[#6eb175]" /> Offrir un café
+                    </a>
                 </div>
             </div>
             <div className="mx-auto max-w-7xl border-t border-gray-800 px-4 pt-6 text-center text-xs sm:px-6 lg:px-8">© 2026 SchoolDesk. Tous droits réservés.</div>
