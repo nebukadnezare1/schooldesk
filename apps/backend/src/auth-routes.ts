@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import { rateLimit } from 'express-rate-limit';
 import type { PrismaClient } from '@prisma/client';
 import { authenticate, clearSessionCookie, createSession, revokeSession, setSessionCookie, verifyPassword } from './auth.js';
 import { sendVerificationCodeEmail } from './mailer.js';
@@ -9,6 +10,16 @@ import { isKnownCountryCode, isKnownCurrencyCode } from './currency.js';
 const CODE_TTL_MS = 15 * 60 * 1000;
 const CODE_RESEND_COOLDOWN_MS = 60 * 1000;
 const CODE_MAX_ATTEMPTS = 5;
+
+// Anti-brute-force sur la connexion : par IP, pas par email, pour ne pas permettre à un attaquant
+// de bloquer le compte d'un tiers juste en connaissant son adresse (déni de service applicatif).
+const loginRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Trop de tentatives de connexion — réessayez dans quelques minutes.' }
+});
 
 const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 const generateCode = () => String(Math.floor(100000 + Math.random() * 900000));
@@ -55,7 +66,7 @@ export const createAuthRouter = (prisma: PrismaClient) => {
         return response.json({ ok: true });
     });
 
-    router.post('/login', async (request, response) => {
+    router.post('/login', loginRateLimiter, async (request, response) => {
         const email = typeof request.body.email === 'string' ? request.body.email.trim().toLowerCase() : '';
         const password = typeof request.body.password === 'string' ? request.body.password : '';
         if (!email || !password) return response.status(400).json({ error: 'Email et mot de passe requis.' });

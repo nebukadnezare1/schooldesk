@@ -16,6 +16,10 @@ import { refreshOverdueStatuses } from './overdue-job.js';
 import { generateMonthlyPayrolls } from './monthly-payroll-job.js';
 
 const app = express();
+// Un seul saut de proxy de confiance (Nginx, même réseau Docker interne — voir nginx.conf,
+// X-Forwarded-For déjà transmis) : nécessaire pour que express-rate-limit (login) identifie le
+// vrai visiteur plutôt que de compter toutes les requêtes comme venant de Nginx.
+app.set('trust proxy', 1);
 const prisma = new PrismaClient();
 const port = Number(process.env.BACKEND_PORT ?? 3000);
 

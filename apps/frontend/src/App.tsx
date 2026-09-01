@@ -22,8 +22,8 @@ const CURRENCY_OPTIONS = currencyOptions();
 
 export function LoginPage({ onLogin, onRegister, onRequestCode, message, isLoading, initialMode = 'login' }: { onLogin: (event: FormEvent<HTMLFormElement>) => void; onRegister: (event: FormEvent<HTMLFormElement>) => void; onRequestCode: (email: string) => Promise<boolean>; message: string; isLoading: boolean; initialMode?: 'login' | 'register' }) {
     const [mode, setMode] = useState<'login' | 'register'>(initialMode);
-    const [email, setEmail] = useState('admin@ecole-garden.local');
-    const [password, setPassword] = useState('change-this-password');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [schoolName, setSchoolName] = useState('');
     const [registerEmail, setRegisterEmail] = useState('');
     const [registerPassword, setRegisterPassword] = useState('');

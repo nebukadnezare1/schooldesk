@@ -58,12 +58,19 @@ export const requirePermission = (code: string) => (request: Request, response: 
     return next();
 };
 
+// Secure uniquement si COOKIE_SECURE=true (à activer sur le NAS, déploiement HTTPS derrière le
+// tunnel Cloudflare) — volontairement pas basé sur NODE_ENV, qui vaut "production" aussi bien en
+// local (voir .env.example) que sur le NAS dans ce projet : un cookie Secure y casserait la
+// connexion en local sur http://localhost:8080 (le navigateur refuse de le stocker/renvoyer sur
+// une connexion non chiffrée). Désactivé par défaut si la variable est absente.
+const secureAttribute = process.env.COOKIE_SECURE === 'true' ? '; Secure' : '';
+
 export const setSessionCookie = (response: Response, token: string, expiresAt: Date) => {
-    response.setHeader('Set-Cookie', `${SESSION_COOKIE}=${token}; HttpOnly; Path=/; SameSite=Lax; Expires=${expiresAt.toUTCString()}`);
+    response.setHeader('Set-Cookie', `${SESSION_COOKIE}=${token}; HttpOnly; Path=/; SameSite=Lax${secureAttribute}; Expires=${expiresAt.toUTCString()}`);
 };
 
 export const clearSessionCookie = (response: Response) => {
-    response.setHeader('Set-Cookie', `${SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0`);
+    response.setHeader('Set-Cookie', `${SESSION_COOKIE}=; HttpOnly; Path=/; SameSite=Lax${secureAttribute}; Max-Age=0`);
 };
 
 export const verifyPassword = (password: string, passwordHash: string) => bcrypt.compare(password, passwordHash);
