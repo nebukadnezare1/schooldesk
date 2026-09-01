@@ -142,7 +142,7 @@ export const FeeReceiptsPage = () => {
     return <main className="mx-auto max-w-2xl p-10 text-[#18352b]">
         <div className="no-print mb-6 grid grid-cols-[auto_1fr_auto] items-center gap-3">
             <Link className="whitespace-nowrap rounded-lg border border-[#356743] px-4 py-2 text-sm text-[#356743]" to="/payments">← Retour</Link>
-            <p className="truncate text-center text-sm text-[#6a8d72]">{fee.student.firstName} {fee.student.lastName} · {fee.feeType.name} · {fee.period} — {payments.length} reçu(s)</p>
+            <p className="text-center text-sm text-[#6a8d72]">{fee.student.firstName} {fee.student.lastName} · {fee.feeType.name} · {fee.period} — {payments.length} reçu(s)</p>
             <button className="whitespace-nowrap rounded-lg bg-[#356743] px-4 py-2 text-sm text-white" onClick={() => window.print()} type="button">Imprimer / PDF</button>
         </div>
         {payments.length === 0 && <p className="text-[#557064]">Aucun reçu enregistré pour ce frais.</p>}
