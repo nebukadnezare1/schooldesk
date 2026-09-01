@@ -530,8 +530,12 @@ const AboutPage = () => {
                 <dl className="mt-2 grid gap-3 text-sm sm:grid-cols-2">
                     <div><dt className="text-[#6a8d72]">Application</dt><dd className="font-medium text-[#18352b]">SchoolDesk</dd></div>
                     <div><dt className="text-[#6a8d72]">Version</dt><dd className="font-medium text-[#18352b]">0.1.0</dd></div>
-                    <div><dt className="text-[#6a8d72]">Créé par</dt><dd className="font-medium text-[#18352b]">Fetouaki A. — DG Design</dd></div>
-                    <div><dt className="text-[#6a8d72]">Contact</dt><dd className="font-medium text-[#18352b]"><a className="underline" href="mailto:ikaoutef@gmail.com">ikaoutef@gmail.com</a></dd></div>
+                    <div><dt className="text-[#6a8d72]">Créé par</dt><dd className="font-medium text-[#18352b]">Fetouaki A.</dd></div>
+                    <div><dt className="text-[#6a8d72]">Contact</dt><dd className="space-y-1 font-medium text-[#18352b]">
+                        <p><a className="underline" href="mailto:ikaoutef@gmail.com">ikaoutef@gmail.com</a></p>
+                        <p><a className="underline" href="tel:+212662156281">+212 6 62 15 62 81</a> (Maroc)</p>
+                        <p><a className="underline" href="tel:+32467808996">+32 467 80 89 96</a> (Belgique)</p>
+                    </dd></div>
                 </dl>
             </div>
             {(canInstall || showIOSHint) && <div>
