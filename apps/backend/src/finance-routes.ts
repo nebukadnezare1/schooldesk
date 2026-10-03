@@ -123,6 +123,9 @@ export const createFinanceRouter = (prisma: PrismaClient) => {
             paymentAllocations = [{ studentFeeId: '', amount }];
         }
         if (paymentAllocations.some((allocation) => (allocation.studentFeeId !== '' && typeof allocation.studentFeeId !== 'string') || !isMoney(allocation.amount) || allocation.amount <= 0)) return response.status(400).json({ error: 'Allocation invalide.' });
+        // Déjà rejeté en base par l'index unique (paymentId, studentFeeId), mais le contrôle du reste dû
+        // ci-dessous raisonne frais par frais : on refuse explicitement un même frais alloué deux fois.
+        if (new Set(paymentAllocations.map((allocation) => allocation.studentFeeId)).size !== paymentAllocations.length) return response.status(400).json({ error: 'Un même frais ne peut apparaître qu’une fois dans un paiement.' });
         const allocationTotal = paymentAllocations.reduce((total, allocation) => total + allocation.amount, 0);
         if (Math.abs(allocationTotal - amount) > 0.001) return response.status(400).json({ error: 'Le total des allocations doit correspondre au paiement.' });
 
@@ -135,6 +138,15 @@ export const createFinanceRouter = (prisma: PrismaClient) => {
 
         try {
             const result = await request.db!.$transaction(async (transaction) => {
+                const schoolId = request.authUser!.schoolId;
+                // Anti-concurrence (A1) : sans verrou, deux encaissements simultanés lisaient le même « déjà payé »
+                // avant que l'un ou l'autre n'écrive, et passaient tous les deux le contrôle du reste dû. On verrouille
+                // d'abord la ligne de l'élève (sérialise tous ses encaissements, y compris la création automatique du
+                // frais ci-dessous), puis les StudentFee concernés. FOR NO KEY UPDATE sur l'élève : n'empêche pas les
+                // insertions qui le référencent par clé étrangère (tâche mensuelle, présences…), seulement un second
+                // verrou identique. Les requêtes suivantes de la transaction (READ COMMITTED) relisent les données
+                // validées par l'encaissement concurrent une fois son verrou libéré.
+                await transaction.$queryRaw`SELECT "id" FROM "Student" WHERE "id" = ${studentId} AND "schoolId" = ${schoolId} FOR NO KEY UPDATE`;
                 if (paymentAllocations[0].studentFeeId === '') {
                     const existingFee = await transaction.studentFee.findUnique({ where: { studentId_feeTypeId_academicYearId_period: { studentId, feeTypeId, academicYearId, period: period.trim() } } });
                     let fee = existingFee;
@@ -156,6 +168,11 @@ export const createFinanceRouter = (prisma: PrismaClient) => {
                     paymentAllocations = [{ studentFeeId: fee.id, amount }];
                 }
                 const feeIds = paymentAllocations.map((allocation) => allocation.studentFeeId);
+                // Verrou des frais dans un ordre déterministe (tri binaire des ids, identique au tri JS utilisé par
+                // l'annulation) : deux paiements multi-frais simultanés ne peuvent pas s'interbloquer.
+                const lockedFees = await transaction.$queryRaw<{ id: string }[]>`SELECT "id" FROM "StudentFee" WHERE "id" = ANY(${feeIds}::text[]) AND "schoolId" = ${schoolId} AND "studentId" = ${studentId} ORDER BY "id" COLLATE "C" FOR UPDATE`;
+                if (lockedFees.length !== feeIds.length) throw new Error('Frais inexistants.');
+                // Relecture APRÈS verrouillage : le « déjà payé » ci-dessous inclut forcément tout encaissement concurrent validé.
                 const fees = await transaction.studentFee.findMany({ where: { id: { in: feeIds }, studentId }, include: { allocations: { include: { payment: { select: { cancelledAt: true } } } } } });
                 if (fees.length !== new Set(feeIds).size) throw new Error('Frais inexistants.');
                 for (const allocation of paymentAllocations) {
@@ -219,7 +236,8 @@ export const createFinanceRouter = (prisma: PrismaClient) => {
                 if (!current) throw new Error('Paiement introuvable.');
                 if (current.cancelledAt) throw new Error('Ce paiement est déjà annulé.');
                 const updated = await transaction.payment.update({ where: { id: paymentId }, data: { cancelledAt: new Date(), cancelReason: reason.trim(), cancelledById: request.authUser!.id } });
-                for (const allocation of current.allocations) await refreshFeeStatus(transaction, allocation.studentFeeId);
+                // Même ordre de verrouillage des frais que POST /payments (tri des ids) : évite un interblocage avec un encaissement simultané.
+                for (const feeId of current.allocations.map((allocation) => allocation.studentFeeId).sort()) await refreshFeeStatus(transaction, feeId);
                 return updated;
             });
             return response.json({ payment });

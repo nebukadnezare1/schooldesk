@@ -53,7 +53,7 @@ type ExpensesPageProps = {
     currency: string;
     values: Record<string, string>;
     setValue: (key: string, value: string) => void;
-    onCreateExpense: (event: FormEvent<HTMLFormElement>) => void;
+    onCreateExpense: (event: FormEvent<HTMLFormElement>) => Promise<void>;
     onCreateCategory: () => void;
     onCancelExpense: (expenseId: string, reason: string) => void;
 };
@@ -67,7 +67,9 @@ export const ExpensesPage = ({ categories, expenses, currency, values, setValue,
     const { sorted: sortedExpenses, sortKey, sortDirection, toggleSort } = useSortedRows(expenses, 'occurredAt' as ExpenseSortKey, expenseSortValue);
 
     const openCreate = () => { Object.entries(emptyExpenseValues).forEach(([key, value]) => setValue(key, value)); setModalOpen(true); };
-    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => { await onCreateExpense(event); setModalOpen(false); };
+    // Bouton désactivé pendant l'envoi (anti double-clic).
+    const [isSubmitting, setSubmitting] = useState(false);
+    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => { if (isSubmitting) { event.preventDefault(); return; } setSubmitting(true); try { await onCreateExpense(event); setModalOpen(false); } finally { setSubmitting(false); } };
 
     return <Shell title="Dépenses">
         <Panel>
@@ -117,7 +119,7 @@ export const ExpensesPage = ({ categories, expenses, currency, values, setValue,
                 <label className="block text-sm font-medium text-[#315a48]">Mode<select className="mt-1 w-full rounded-lg border border-[#cbdacb] bg-white px-3 py-2" onChange={(event) => setValue('expenseMethod', event.target.value)} value={values.expenseMethod}><option value="CASH">Espèces</option><option value="TRANSFER">Virement</option><option value="CHECK">Chèque</option><option value="CARD">Carte</option></select></label>
                 <Field label="Référence" onChange={(value) => setValue('expenseReference', value)} required={false} value={values.expenseReference} />
                 <div className="sm:col-span-2"><Field label="Commentaire" onChange={(value) => setValue('expenseComment', value)} required={false} value={values.expenseComment} /></div>
-                <div className="sm:col-span-2"><button className="w-full rounded-lg bg-[#356743] px-4 py-2 font-medium text-white" type="submit">Enregistrer la dépense</button></div>
+                <div className="sm:col-span-2"><button className="w-full rounded-lg bg-[#356743] px-4 py-2 font-medium text-white disabled:opacity-60" disabled={isSubmitting} type="submit">{isSubmitting ? 'Enregistrement…' : 'Enregistrer la dépense'}</button></div>
             </form>
         </Modal>
     </Shell>;
@@ -152,9 +154,12 @@ const advanceSortValue = (advance: SalaryAdvance, key: AdvanceSortKey): string |
 const emptyPayrollValues: Record<string, string> = { payrollEmployeeId: '', payrollMonth: '', payrollBaseSalary: '', payrollBonuses: '0', payrollAdvances: '0', payrollDeductions: '0', editingPayrollId: '' };
 const emptyAdvanceValues: Record<string, string> = { advanceEmployeeId: '', advanceAmount: '', advanceReason: '', advanceMonth: '' };
 
-const PayModal = ({ open, onClose, onConfirm, payroll, currency }: { open: boolean; onClose: () => void; onConfirm: (amount: number, method: string) => void; payroll: Payroll | null; currency: string }) => {
+const PayModal = ({ open, onClose, onConfirm, payroll, currency }: { open: boolean; onClose: () => void; onConfirm: (amount: number, method: string) => Promise<void>; payroll: Payroll | null; currency: string }) => {
     const [amount, setAmount] = useState('');
     const [method, setMethod] = useState('CASH');
+    // Bouton désactivé pendant l'envoi (anti double-clic) — le serveur refuse de toute façon tout dépassement du net.
+    const [isSubmitting, setSubmitting] = useState(false);
+    const confirm = async () => { if (isSubmitting) return; setSubmitting(true); try { await onConfirm(Number(amount), method); setAmount(''); } finally { setSubmitting(false); } };
     const remaining = payroll ? Math.max(0, Number(payroll.netSalary) - Number(payroll.amountPaid)) : 0;
 
     useEffect(() => {
@@ -167,7 +172,7 @@ const PayModal = ({ open, onClose, onConfirm, payroll, currency }: { open: boole
             <Field label="Montant" onChange={setAmount} type="number" value={amount} />
             <label className="block text-sm font-medium text-[#315a48]">Mode<select className="mt-1 w-full rounded-lg border border-[#cbdacb] bg-white px-3 py-2" onChange={(event) => setMethod(event.target.value)} value={method}><option value="CASH">Espèces</option><option value="TRANSFER">Virement</option><option value="CHECK">Chèque</option><option value="CARD">Carte</option></select></label>
         </div>
-        <button className="mt-4 rounded-lg bg-[#356743] px-4 py-2 text-white disabled:opacity-50" disabled={!amount || Number(amount) <= 0} onClick={() => { onConfirm(Number(amount), method); setAmount(''); }} type="button">Confirmer le versement</button>
+        <button className="mt-4 rounded-lg bg-[#356743] px-4 py-2 text-white disabled:opacity-50" disabled={!amount || Number(amount) <= 0 || isSubmitting} onClick={confirm} type="button">{isSubmitting ? 'Enregistrement…' : 'Confirmer le versement'}</button>
     </Modal>;
 };
 
@@ -201,9 +206,9 @@ type PayrollPageProps = {
     onCreatePayroll: (event: FormEvent<HTMLFormElement>) => void;
     onUpdatePayroll: (event: FormEvent<HTMLFormElement>) => void;
     onDeletePayroll: (payrollId: string) => void;
-    onPayPayroll: (payrollId: string, amount: number, method: string) => void;
+    onPayPayroll: (payrollId: string, amount: number, method: string) => Promise<void>;
     onCancelPayrollPayment: (paymentId: string, reason: string) => void;
-    onCreateAdvance: (event: FormEvent<HTMLFormElement>) => void;
+    onCreateAdvance: (event: FormEvent<HTMLFormElement>) => Promise<void>;
     onCancelAdvance: (advanceId: string, reason: string) => void;
     onMarkAdvanceRecovered: (advanceId: string) => void;
 };
@@ -251,7 +256,8 @@ export const PayrollPage = ({ employees, payrolls, advances, currency, values, s
     };
     const handleCreatePayrollSubmit = async (event: FormEvent<HTMLFormElement>) => { await (isEditingPayroll ? onUpdatePayroll(event) : onCreatePayroll(event)); setCreateModalOpen(false); };
     const openCreateAdvance = () => { Object.entries(emptyAdvanceValues).forEach(([key, value]) => setValue(key, value)); setAdvanceModalOpen(true); };
-    const handleCreateAdvanceSubmit = async (event: FormEvent<HTMLFormElement>) => { await onCreateAdvance(event); setAdvanceModalOpen(false); };
+    const [isAdvanceSubmitting, setAdvanceSubmitting] = useState(false);
+    const handleCreateAdvanceSubmit = async (event: FormEvent<HTMLFormElement>) => { if (isAdvanceSubmitting) { event.preventDefault(); return; } setAdvanceSubmitting(true); try { await onCreateAdvance(event); setAdvanceModalOpen(false); } finally { setAdvanceSubmitting(false); } };
 
     return <Shell title="Salaires">
         <Panel>
@@ -298,7 +304,7 @@ export const PayrollPage = ({ employees, payrolls, advances, currency, values, s
             ...(menuPayroll.payments.length === 0 ? [{ label: 'Supprimer (erreur de saisie)', tone: 'danger' as const, onClick: () => { closePayrollMenu(); onDeletePayroll(menuPayroll.id); } }] : [])
         ]} onClose={closePayrollMenu} x={payrollContextMenu.x} y={payrollContextMenu.y} />}
 
-        <PayModal currency={currency} onClose={() => setPayModalTargetId(null)} onConfirm={(amount, method) => { if (payModalTargetId) onPayPayroll(payModalTargetId, amount, method); setPayModalTargetId(null); }} open={payModalTargetId !== null} payroll={payModalTargetId ? payrolls.find((payroll) => payroll.id === payModalTargetId) ?? null : null} />
+        <PayModal currency={currency} onClose={() => setPayModalTargetId(null)} onConfirm={async (amount, method) => { if (payModalTargetId) await onPayPayroll(payModalTargetId, amount, method); setPayModalTargetId(null); }} open={payModalTargetId !== null} payroll={payModalTargetId ? payrolls.find((payroll) => payroll.id === payModalTargetId) ?? null : null} />
         <PayrollPaymentsModal currency={currency} onCancelPayment={(paymentId) => setCancelPaymentTargetId(paymentId)} onClose={() => setPaymentsModalTargetId(null)} open={paymentsModalTargetId !== null} payroll={paymentsModalPayroll} />
         <CancelReasonModal notice="Le versement original est conservé pour l'historique ; son montant sera retiré de la caisse et le salaire redeviendra dû d'autant." onClose={() => setCancelPaymentTargetId(null)} onConfirm={(reason) => { if (cancelPaymentTargetId) onCancelPayrollPayment(cancelPaymentTargetId, reason); setCancelPaymentTargetId(null); setPaymentsModalTargetId(null); }} open={cancelPaymentTargetId !== null} title="Annuler le versement" />
 
@@ -356,7 +362,7 @@ export const PayrollPage = ({ employees, payrolls, advances, currency, values, s
                 <Field label="Montant" onChange={(value) => setValue('advanceAmount', value)} type="number" value={values.advanceAmount} />
                 <Field label="Mois de récupération (AAAA-MM)" onChange={(value) => setValue('advanceMonth', value)} value={values.advanceMonth} />
                 <Field label="Motif" onChange={(value) => setValue('advanceReason', value)} required={false} value={values.advanceReason} />
-                <div className="sm:col-span-3"><button className="w-full rounded-lg bg-[#356743] px-4 py-2 font-medium text-white" type="submit">Enregistrer l'avance</button></div>
+                <div className="sm:col-span-3"><button className="w-full rounded-lg bg-[#356743] px-4 py-2 font-medium text-white disabled:opacity-60" disabled={isAdvanceSubmitting} type="submit">{isAdvanceSubmitting ? 'Enregistrement…' : "Enregistrer l'avance"}</button></div>
             </form>
         </Modal>
     </Shell>;

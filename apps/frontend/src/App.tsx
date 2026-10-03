@@ -629,6 +629,15 @@ export default function App() {
     // Une coupure réseau ponctuelle affiche un message clair plutôt que de planter silencieusement
     // (l'app suppose une connexion active, mais ne doit pas se bloquer sans explication dessus).
     const create = async (path: string, body: unknown, success: string, after?: () => Promise<void>, method = 'POST') => { try { const response = await request(path, { method, body: JSON.stringify(body) }); if (response.ok) { setMessage(success); if (after) await after(); } else setMessage((await response.json()).error); } catch { setMessage('Action impossible sans connexion — réessayez une fois reconnecté.'); } };
+    // Anti double-soumission des opérations financières (chantier A1) : un second envoi de la même action est
+    // ignoré tant que le premier n'a pas répondu. Confort UX uniquement — la garantie qu'un encaissement ne
+    // dépasse jamais le reste dû est côté serveur (verrous PostgreSQL, finance-routes.ts/operations-routes.ts).
+    const pendingSubmits = useRef(new Set<string>());
+    const submitOnce = async (key: string, action: () => Promise<void>) => {
+        if (pendingSubmits.current.has(key)) return;
+        pendingSubmits.current.add(key);
+        try { await action(); } finally { pendingSubmits.current.delete(key); }
+    };
     const restoreBackup = async (confirmName: string, backup: unknown) => {
         try {
             const response = await request('/api/backup/restore', { method: 'POST', body: JSON.stringify({ confirmName, backup }) });
@@ -696,7 +705,7 @@ export default function App() {
     const loadAttendance = async () => { try { const response = await request(`/api/attendance?date=${values.attendanceDate}&schoolClassId=${values.attendanceClassId}`); if (response.ok) { const data = await response.json(); setValues((current) => ({ ...current, ...Object.fromEntries((data.attendances as { studentId: string; status: string }[]).map((entry) => [`attendance_${entry.studentId}`, entry.status])) })); } } catch { /* réseau indisponible ponctuellement */ } };
     const saveAttendance = async () => { const classStudents = students.filter((student) => student.enrollments[0]?.schoolClass.id === values.attendanceClassId); await create('/api/attendance/bulk', { date: values.attendanceDate, schoolClassId: values.attendanceClassId, entries: classStudents.map((student) => ({ studentId: student.id, status: values[`attendance_${student.id}`] ?? 'PRESENT' })) }, 'Présences enregistrées.', loadAttendance); };
     const createFee = async () => { await create('/api/student-fees', { studentId: values.financeStudentId, feeTypeId: values.feeTypeId, academicYearId: activeYear?.id, period: values.feePeriod, expectedAmount: Number(values.feeAmount), dueDate: values.feeDueDate }, 'Frais créé.', async () => { await loadData(); await loadFinance(values.financeStudentId); }); };
-    const createPayment = async () => {
+    const createPayment = () => submitOnce('payment', async () => {
         // Le sélecteur "Date du paiement" ne donne qu'un jour (YYYY-MM-DD, aujourd'hui par défaut,
         // ou une date antérieure choisie volontairement) — envoyer cette chaîne telle quelle au
         // serveur faisait perdre l'heure : new Date("YYYY-MM-DD") est toujours interprété en UTC
@@ -710,9 +719,9 @@ export default function App() {
         })() : undefined;
         await create('/api/payments', { studentId: values.financeStudentId, academicYearId: activeYear?.id, feeTypeId: values.feeTypeId, period: values.feePeriod, amount: Number(values.paymentAmount), method: values.paymentMethod, paidAt }, 'Paiement enregistré et reçu créé.', async () => { await loadData(); await loadFinance(values.financeStudentId); });
         setValue('paymentAmount', '');
-    };
+    });
     const cancelPayment = async (paymentId: string, reason: string) => { await create(`/api/payments/${paymentId}/cancel`, { reason }, 'Paiement annulé.', async () => { await loadData(); await loadFinance(values.financeStudentId); }); };
-    const createExpense = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); await create('/api/expenses', { categoryId: values.expenseCategoryId, description: values.expenseDescription, beneficiary: values.expenseBeneficiary, amount: Number(values.expenseAmount), method: values.expenseMethod, reference: values.expenseReference || undefined, comment: values.expenseComment || undefined }, 'Dépense enregistrée.', loadData); };
+    const createExpense = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); await submitOnce('expense', () => create('/api/expenses', { categoryId: values.expenseCategoryId, description: values.expenseDescription, beneficiary: values.expenseBeneficiary, amount: Number(values.expenseAmount), method: values.expenseMethod, reference: values.expenseReference || undefined, comment: values.expenseComment || undefined }, 'Dépense enregistrée.', loadData)); };
     const cancelExpense = async (expenseId: string, reason: string) => { await create(`/api/expenses/${expenseId}/cancel`, { reason }, 'Dépense annulée.', loadData); };
     const createCategory = async () => {
         if (!values.newCategoryName.trim()) return;
@@ -724,13 +733,13 @@ export default function App() {
     const createFeeType = async () => { if (!values.newFeeTypeName.trim()) return; await create('/api/fee-types', { name: values.newFeeTypeName, defaultAmount: Number(values.newFeeTypeAmount || 0), frequency: values.newFeeTypeFrequency }, 'Type de frais créé.', loadData); };
     const createPayroll = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); await create('/api/payrolls', { employeeId: values.payrollEmployeeId, month: values.payrollMonth, baseSalary: Number(values.payrollBaseSalary), bonuses: Number(values.payrollBonuses), advances: Number(values.payrollAdvances), deductions: Number(values.payrollDeductions) }, 'Salaire créé.', loadData); };
     const updatePayroll = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); await create(`/api/payrolls/${values.editingPayrollId}`, { month: values.payrollMonth, baseSalary: Number(values.payrollBaseSalary), bonuses: Number(values.payrollBonuses), advances: Number(values.payrollAdvances), deductions: Number(values.payrollDeductions) }, 'Salaire modifié.', loadData, 'PATCH'); };
-    const payPayroll = async (payrollId: string, amount: number, method: string) => { await create(`/api/payrolls/${payrollId}/pay`, { amount, method }, 'Paiement de salaire enregistré.', loadData); };
+    const payPayroll = (payrollId: string, amount: number, method: string) => submitOnce('payroll-pay', () => create(`/api/payrolls/${payrollId}/pay`, { amount, method }, 'Paiement de salaire enregistré.', loadData));
     const cancelPayrollPayment = async (paymentId: string, reason: string) => { await create(`/api/payroll-payments/${paymentId}/cancel`, { reason }, 'Versement annulé.', loadData); };
     const deletePayroll = async (payrollId: string) => {
         if (!window.confirm('Supprimer ce salaire ? Cette action est irréversible (possible uniquement si aucun versement n\'a encore été enregistré).')) return;
         await create(`/api/payrolls/${payrollId}`, undefined, 'Salaire supprimé.', loadData, 'DELETE');
     };
-    const createAdvance = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); await create('/api/salary-advances', { employeeId: values.advanceEmployeeId, amount: Number(values.advanceAmount), reason: values.advanceReason || undefined, recoveryMonth: values.advanceMonth }, 'Avance enregistrée.', loadData); };
+    const createAdvance = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); await submitOnce('advance', () => create('/api/salary-advances', { employeeId: values.advanceEmployeeId, amount: Number(values.advanceAmount), reason: values.advanceReason || undefined, recoveryMonth: values.advanceMonth }, 'Avance enregistrée.', loadData)); };
     const cancelAdvance = async (advanceId: string, reason: string) => { await create(`/api/salary-advances/${advanceId}/cancel`, { reason }, 'Avance annulée.', loadData); };
     const markAdvanceRecovered = async (advanceId: string) => { await create(`/api/salary-advances/${advanceId}/status`, { status: 'RECOVERED' }, 'Avance marquée récupérée.', loadData, 'PATCH'); };
     const viewUnpaidInPayments = async (studentId: string, feeTypeId: string, period: string, remaining: string) => {

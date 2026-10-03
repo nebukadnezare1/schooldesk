@@ -1,0 +1,30 @@
+# Base PostgreSQL JETABLE pour les tests automatisés du backend — totalement séparée de la pile
+# docker-compose.yml du projet (production/dev) : nom de projet Compose distinct, réseau propre,
+# aucun port publié sur l'hôte, données en tmpfs (perdues à l'arrêt), aucun volume nommé.
+# Ne jamais faire pointer ces tests vers la base réelle. Lancement : `npm run test:docker` (apps/backend).
+name: schooldesk-test
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: schooldesk_test
+      POSTGRES_PASSWORD: schooldesk_test
+      POSTGRES_DB: schooldesk_test
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U schooldesk_test -d schooldesk_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  tests:
+    build:
+      context: ../../..
+      dockerfile: apps/backend/tests/Dockerfile
+    environment:
+      TEST_DATABASE_URL: postgresql://schooldesk_test:schooldesk_test@postgres:5432/schooldesk_test
+    depends_on:
+      postgres:
+        condition: service_healthy

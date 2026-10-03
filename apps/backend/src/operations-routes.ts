@@ -99,17 +99,24 @@ export const createOperationsRouter = (prisma: PrismaClient) => {
         const netSalary = baseSalary + bonuses - advances - deductions;
         if (netSalary <= 0) return response.status(400).json({ error: 'Le salaire net doit être positif.' });
 
-        const current = await request.db!.payroll.findUnique({ where: { id: payrollId }, include: { _count: { select: { payments: true } } } });
-        if (!current) return response.status(404).json({ error: 'Salaire introuvable.' });
-        if (current._count.payments > 0) return response.status(400).json({ error: 'Modification impossible : ce salaire a déjà au moins un versement enregistré.' });
-
         try {
-            const payroll = await request.db!.payroll.update({
-                where: { id: payrollId },
-                data: { month, baseSalary: decimal(baseSalary), bonuses: decimal(bonuses), advances: decimal(advances), deductions: decimal(deductions), netSalary: decimal(netSalary) },
-                include: { employee: true }
+            const result = await request.db!.$transaction(async (transaction) => {
+                // Anti-concurrence (A1) : même verrou que POST /payrolls/:id/pay. Sans lui, un versement pouvait
+                // être validé entre le contrôle « aucun versement » et la baisse du net (amountPaid > netSalary).
+                // Après le verrou, le comptage voit forcément tout versement concurrent déjà validé, et aucun
+                // nouveau versement ne peut passer avant la fin de cette transaction.
+                const locked = await transaction.$queryRaw<{ id: string }[]>`SELECT "id" FROM "Payroll" WHERE "id" = ${payrollId} AND "schoolId" = ${request.authUser!.schoolId} FOR UPDATE`;
+                if (locked.length === 0) return { status: 404, body: { error: 'Salaire introuvable.' } };
+                // Règle inchangée : tout versement, même annulé, interdit la modification libre.
+                if (await transaction.payrollPayment.count({ where: { payrollId } }) > 0) return { status: 400, body: { error: 'Modification impossible : ce salaire a déjà au moins un versement enregistré.' } };
+                const payroll = await transaction.payroll.update({
+                    where: { id: payrollId },
+                    data: { month, baseSalary: decimal(baseSalary), bonuses: decimal(bonuses), advances: decimal(advances), deductions: decimal(deductions), netSalary: decimal(netSalary) },
+                    include: { employee: true }
+                });
+                return { status: 200, body: { payroll } };
             });
-            return response.json({ payroll });
+            return response.status(result.status).json(result.body);
         } catch { return response.status(409).json({ error: 'Salaire déjà créé pour cet employé et ce mois.' }); }
     });
 
@@ -135,9 +142,16 @@ export const createOperationsRouter = (prisma: PrismaClient) => {
         if (typeof payrollId !== 'string' || !isMoney(amount) || !methods.includes(method)) return response.status(400).json({ error: 'Paiement de salaire invalide.' });
         try {
             const payroll = await request.db!.$transaction(async (transaction) => {
-                const current = await transaction.payroll.findUnique({ where: { id: payrollId } });
+                // Anti-concurrence (A1) : verrouille la ligne Payroll AVANT de calculer le déjà-versé — deux versements
+                // simultanés sont ainsi sérialisés et le second voit le premier (READ COMMITTED), au lieu de lire tous
+                // les deux le même état et de dépasser ensemble le salaire net.
+                const locked = await transaction.$queryRaw<{ id: string }[]>`SELECT "id" FROM "Payroll" WHERE "id" = ${payrollId} AND "schoolId" = ${request.authUser!.schoolId} FOR UPDATE`;
+                if (locked.length === 0) throw new Error('Salaire inexistant.');
+                const current = await transaction.payroll.findUnique({ where: { id: payrollId }, include: { payments: { where: { cancelledAt: null }, select: { amount: true } } } });
                 if (!current) throw new Error('Salaire inexistant.');
-                if (new Prisma.Decimal(current.amountPaid).plus(decimal(amount)).gt(current.netSalary)) throw new Error('Le paiement dépasse le salaire net.');
+                // Déjà-versé recalculé depuis les versements non annulés (même règle que refreshPayrollStatus).
+                const alreadyPaid = current.payments.reduce((total, payment) => total.plus(payment.amount), new Prisma.Decimal(0));
+                if (alreadyPaid.plus(decimal(amount)).gt(current.netSalary)) throw new Error('Le paiement dépasse le salaire net.');
                 const sequence = await nextSequenceNumber(transaction, request.authUser!.schoolId, 'BUL', async () => maxNumericSuffix((await transaction.payrollPayment.findMany({ select: { receiptNumber: true } })).map((row) => row.receiptNumber)));
                 const receiptNumber = `BUL-${new Date().getUTCFullYear()}-${String(sequence).padStart(5, '0')}`;
                 const payment = await transaction.payrollPayment.create({ data: { schoolId: request.authUser!.schoolId, payrollId, receiptNumber, amount: decimal(amount), method, recordedById: request.authUser!.id } });

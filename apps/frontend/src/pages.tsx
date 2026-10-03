@@ -29,7 +29,7 @@ type PageProps = {
     onUpdateEmployee: (event: FormEvent<HTMLFormElement>) => void;
     onDeleteEmployee: (employeeId: string) => void;
     onCreateFee: () => void;
-    onCreatePayment: () => void;
+    onCreatePayment: () => Promise<void>;
     onCancelPayment: (paymentId: string, reason: string) => void;
     onSelectFinanceStudent: (studentId: string) => Promise<void>;
     onLoadAttendance: () => void;
@@ -565,7 +565,9 @@ export const PaymentsPage = ({ students, classes, currency, studentFees, payment
         if (student?.status === 'LEFT') { window.alert(`${student.firstName} ${student.lastName} a quitté l'école — impossible d'enregistrer un nouvel encaissement pour cet élève.`); return; }
         await onSelectFinanceStudent(studentId); Object.entries(emptyPaymentValues).forEach(([key, value]) => setValue(key, value)); setValue('paymentPaidAt', today()); setPaymentModalOpen(true);
     };
-    const handlePaymentSubmit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); await onCreatePayment(); setPaymentModalOpen(false); };
+    // Bouton désactivé pendant l'envoi (anti double-clic) — protection UX, le serveur refuse de toute façon tout dépassement.
+    const [isPaymentSubmitting, setPaymentSubmitting] = useState(false);
+    const handlePaymentSubmit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); if (isPaymentSubmitting) return; setPaymentSubmitting(true); try { await onCreatePayment(); setPaymentModalOpen(false); } finally { setPaymentSubmitting(false); } };
     const openFeeModalFor = async (studentId: string) => {
         const student = students.find((candidate) => candidate.id === studentId);
         if (student?.status === 'LEFT') { window.alert(`${student.firstName} ${student.lastName} a quitté l'école — impossible d'ajouter un frais pour cet élève.`); return; }
@@ -653,7 +655,7 @@ export const PaymentsPage = ({ students, classes, currency, studentFees, payment
                 <Field label="Montant payé" onChange={(value) => setValue('paymentAmount', value)} type="number" value={values.paymentAmount} />
                 <label className="text-sm font-medium text-[#315a48]">Mode<select className="mt-1 w-full rounded-lg border border-[#cbdacb] px-3 py-2" onChange={(event) => setValue('paymentMethod', event.target.value)} value={values.paymentMethod}><option value="CASH">Espèces</option><option value="TRANSFER">Virement</option><option value="CHECK">Chèque</option><option value="CARD">Carte</option></select></label>
                 <Field label="Date du paiement" onChange={(value) => setValue('paymentPaidAt', value)} type="date" value={values.paymentPaidAt} />
-                <div className="sm:col-span-2"><button className="w-full rounded-lg bg-[#356743] px-4 py-2 font-medium text-white" type="submit">Enregistrer le paiement</button></div>
+                <div className="sm:col-span-2"><button className="w-full rounded-lg bg-[#356743] px-4 py-2 font-medium text-white disabled:opacity-60" disabled={isPaymentSubmitting} type="submit">{isPaymentSubmitting ? 'Enregistrement…' : 'Enregistrer le paiement'}</button></div>
             </form>
         </Modal>
 
