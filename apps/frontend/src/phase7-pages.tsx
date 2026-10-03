@@ -225,7 +225,23 @@ export const PayrollPage = ({ employees, payrolls, advances, currency, values, s
     const [cancelAdvanceTargetId, setCancelAdvanceTargetId] = useState<string | null>(null);
 
     const [employeeFilter, setEmployeeFilter] = useState('');
-    const filteredPayrolls = employeeFilter ? payrolls.filter((payroll) => payroll.employee.id === employeeFilter) : payrolls;
+    // Filtres propres à la liste des salaires (les avances gardent uniquement le filtre employé ci-dessus).
+    // Mois courant déterminé en heure locale du navigateur ; '' = tous les mois.
+    const [payrollMonthFilter, setPayrollMonthFilter] = useState(currentLocalMonth);
+    const [payrollStatusFilter, setPayrollStatusFilter] = useState('');
+    const payrollMonthOptions = Array.from(new Set([currentLocalMonth(), ...payrolls.map((payroll) => payroll.month)])).sort().reverse();
+    const filteredPayrolls = payrolls.filter((payroll) =>
+        (!employeeFilter || payroll.employee.id === employeeFilter)
+        && (!payrollMonthFilter || payroll.month === payrollMonthFilter)
+        && (!payrollStatusFilter || payroll.status === payrollStatusFilter));
+    const payrollMonthSelect = <select aria-label="Filtrer par mois" className="rounded-lg border border-[#cbdacb] bg-white px-3 py-2 text-sm" onChange={(event) => setPayrollMonthFilter(event.target.value)} value={payrollMonthFilter}>
+        {payrollMonthOptions.map((key) => <option key={key} value={key}>{monthLabel(key)}</option>)}
+        <option value="">Tous les mois</option>
+    </select>;
+    const payrollStatusSelect = <select aria-label="Filtrer par statut" className="rounded-lg border border-[#cbdacb] bg-white px-3 py-2 text-sm" onChange={(event) => setPayrollStatusFilter(event.target.value)} value={payrollStatusFilter}>
+        <option value="">Tous les statuts</option>
+        {Object.entries(payrollStatusLabels).map(([status, label]) => <option key={status} value={status}>{label}</option>)}
+    </select>;
     const filteredAdvances = employeeFilter ? advances.filter((advance) => advance.employee.id === employeeFilter) : advances;
     const employeeFilterSelect = <select className="rounded-lg border border-[#cbdacb] bg-white px-3 py-2 text-sm" onChange={(event) => setEmployeeFilter(event.target.value)} value={employeeFilter}>
         <option value="">Tous les employés</option>
@@ -262,8 +278,8 @@ export const PayrollPage = ({ employees, payrolls, advances, currency, values, s
     return <Shell title="Salaires">
         <Panel>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm text-[#6a8d72]">{sortedPayrolls.length} salaire(s){employeeFilter ? ` sur ${payrolls.length}` : ''} · clic droit (ou ⋮) pour enregistrer un versement ou voir l'historique · clic sur un titre pour trier</p>
-                <div className="flex flex-wrap items-center gap-2">{employeeFilterSelect}<button className="rounded-lg bg-[#356743] px-3 py-1.5 text-xs font-medium text-white sm:px-4 sm:py-2 sm:text-sm" onClick={openCreatePayroll} type="button">+ Nouveau salaire</button></div>
+                <p className="text-sm text-[#6a8d72]">{sortedPayrolls.length} salaire(s) · clic droit (ou ⋮) pour enregistrer un versement ou voir l'historique · clic sur un titre pour trier</p>
+                <div className="flex flex-wrap items-center gap-2">{payrollMonthSelect}{employeeFilterSelect}{payrollStatusSelect}<button className="rounded-lg bg-[#356743] px-3 py-1.5 text-xs font-medium text-white sm:px-4 sm:py-2 sm:text-sm" onClick={openCreatePayroll} type="button">+ Nouveau salaire</button></div>
             </div>
             <div className="overflow-x-auto">
                 <table className="w-full min-w-max text-xs sm:text-sm">
@@ -293,7 +309,7 @@ export const PayrollPage = ({ employees, payrolls, advances, currency, values, s
                         })}
                     </tbody>
                 </table>
-                {sortedPayrolls.length === 0 && <p className="py-4 text-[#557064]">{payrolls.length === 0 ? 'Aucun salaire enregistré.' : 'Aucun salaire pour cet employé.'}</p>}
+                {sortedPayrolls.length === 0 && <p className="py-4 text-[#557064]">{payrolls.length === 0 ? 'Aucun salaire enregistré.' : 'Aucun salaire ne correspond aux filtres sélectionnés.'}</p>}
             </div>
         </Panel>
 
@@ -384,6 +400,10 @@ const cashSortValue = (entry: CashEntry, key: CashSortKey): string | number => {
 };
 
 const monthKey = (dateStr: string) => dateStr.slice(0, 7);
+function currentLocalMonth() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
 const monthLabel = (key: string) => {
     const [year, month] = key.split('-').map(Number);
     const label = new Date(year, month - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
