@@ -401,6 +401,7 @@ const cashSortValue = (entry: CashEntry, key: CashSortKey): string | number => {
 
 const monthKey = (dateStr: string) => dateStr.slice(0, 7);
 // Types de mouvements réellement écrits en caisse (CashTransaction.sourceType) — les avances n'y figurent pas.
+const cashSlotClass = 'w-48 rounded-lg border border-[#cbdacb] bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:bg-[#f4f7f2] disabled:text-[#9fb3a4]';
 const cashSourceLabels: Record<string, string> = { PAYMENT: 'Paiements élèves', PAYROLL_PAYMENT: 'Salaires', EXPENSE: 'Dépenses' };
 // Période du frais (paiement élève) ou du salaire lié (Payroll.month) — jamais déduite de la date du mouvement.
 function cashPeriodLabel(entry: CashEntry) {
@@ -477,22 +478,25 @@ export const CashPage = ({ cash, classes, currency }: { cash: CashEntry[]; class
                         <option value="">Tous les mois</option>
                         {months.map((key) => <option key={key} value={key}>{monthLabel(key)}</option>)}
                     </select>
-                    <select aria-label="Type de mouvement" className="rounded-lg border border-[#cbdacb] bg-white px-3 py-2 text-sm" onChange={(event) => changeSource(event.target.value)} value={sourceFilter}>
+                    <select aria-label="Type de mouvement" className={cashSlotClass.replace('w-48', 'w-56')} onChange={(event) => changeSource(event.target.value)} value={sourceFilter}>
                         <option value="">Tous les mouvements</option>
                         {Object.entries(cashSourceLabels).map(([source, label]) => <option key={source} value={source}>{label}</option>)}
                     </select>
-                    {showStudentFilters && <select aria-label="Filtrer par classe" className="rounded-lg border border-[#cbdacb] bg-white px-3 py-2 text-sm" onChange={(event) => setClassFilter(event.target.value)} value={classFilter}>
-                        <option value="">Toutes les classes</option>
-                        {classes.map((schoolClass) => <option key={schoolClass.id} value={schoolClass.id}>{schoolClass.name}</option>)}
-                    </select>}
-                    {showStudentFilters && <select aria-label="Filtrer par élève" className="rounded-lg border border-[#cbdacb] bg-white px-3 py-2 text-sm" onChange={(event) => setStudentFilter(event.target.value)} value={studentFilter}>
+                    {/* Deux emplacements de largeur fixe, toujours présents, pour éviter tout décalage de la barre quand le type change :
+                        emplacement 1 = Classe (désactivée pour Dépenses) ou Employé (Salaires) ; emplacement 2 = Élève (désactivé hors Tous/Paiements). */}
+                    {showEmployeeFilter
+                        ? <select aria-label="Filtrer par employé" className={cashSlotClass} onChange={(event) => setEmployeeFilter(event.target.value)} value={employeeFilter}>
+                            <option value="">Tous les employés</option>
+                            {cashEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}
+                        </select>
+                        : <select aria-label="Filtrer par classe" className={cashSlotClass} disabled={!showStudentFilters} onChange={(event) => setClassFilter(event.target.value)} value={classFilter}>
+                            <option value="">Toutes les classes</option>
+                            {classes.map((schoolClass) => <option key={schoolClass.id} value={schoolClass.id}>{schoolClass.name}</option>)}
+                        </select>}
+                    <select aria-label="Filtrer par élève" className={cashSlotClass} disabled={!showStudentFilters} onChange={(event) => setStudentFilter(event.target.value)} value={studentFilter}>
                         <option value="">Tous les élèves</option>
                         {students.map((student) => <option key={student.id} value={student.id}>{student.name}</option>)}
-                    </select>}
-                    {showEmployeeFilter && <select aria-label="Filtrer par employé" className="rounded-lg border border-[#cbdacb] bg-white px-3 py-2 text-sm" onChange={(event) => setEmployeeFilter(event.target.value)} value={employeeFilter}>
-                        <option value="">Tous les employés</option>
-                        {cashEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}
-                    </select>}
+                    </select>
                     <select className="rounded-lg border border-[#cbdacb] bg-white px-3 py-2 text-sm" onChange={(event) => setTypeFilter(event.target.value)} value={typeFilter}>
                         <option value="">Entrées et sorties</option>
                         <option value="INCOME">Entrées</option>
