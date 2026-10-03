@@ -75,6 +75,19 @@ services:
       DB_BACKUP_RETENTION: ${DB_BACKUP_RETENTION:-14}
       DB_BACKUP_CHECK_INTERVAL: ${DB_BACKUP_CHECK_INTERVAL:-3600}
       TZ: ${DB_BACKUP_TZ:-UTC}
+      # Copie hors NAS par e-mail (chiffrée), désactivée par défaut — voir scripts/db-backup/email.sh.
+      # Réutilise le même serveur SMTP que le backend (variables SMTP_* ci-dessus).
+      DB_BACKUP_EMAIL_ENABLED: ${DB_BACKUP_EMAIL_ENABLED:-false}
+      DB_BACKUP_EMAIL_TO: ${DB_BACKUP_EMAIL_TO:-}
+      DB_BACKUP_EMAIL_PASSPHRASE: ${DB_BACKUP_EMAIL_PASSPHRASE:-}
+      DB_BACKUP_EMAIL_MAX_MB: ${DB_BACKUP_EMAIL_MAX_MB:-18}
+      DB_BACKUP_EMAIL_MAX_ATTEMPTS: ${DB_BACKUP_EMAIL_MAX_ATTEMPTS:-3}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_SECURE: ${SMTP_SECURE:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
     volumes:
       - ${DB_BACKUP_HOST_DIR:-./storage/db-backups}:/backups
     depends_on:

@@ -155,7 +155,47 @@ docker rm -f sd-restore-test
 
 Une restauration réelle de production (en cas de sinistre) consiste à arrêter `backend`, recréer une base vide puis y lancer le même `pg_restore` — à ne faire qu'en connaissance de cause, après avoir testé le dump comme ci-dessus.
 
-> Ces sauvegardes restent sur la même machine que la base : copiez régulièrement `storage/db-backups/` **hors** de cette machine (autre disque, autre serveur, stockage externe) pour être protégé d'une panne matérielle.
+> Ces sauvegardes restent sur la même machine que la base : copiez régulièrement `storage/db-backups/` **hors** de cette machine (autre disque, autre serveur, stockage externe) pour être protégé d'une panne matérielle. La copie par e-mail ci-dessous en est une forme automatique.
+
+### Copie hors machine par e-mail (optionnelle, chiffrée)
+
+Après chaque **nouvelle** sauvegarde quotidienne validée, `db-backup` peut en envoyer une copie **chiffrée** par e-mail. La sauvegarde locale reste la sauvegarde principale : l'e-mail n'est qu'une copie supplémentaire, et un échec d'envoi ne touche jamais au dump local.
+
+**Fonctionnement** (`scripts/db-backup/email.sh`, lancé à chaque vérification horaire) :
+
+1. Seul le dump le plus récent au nom exact `schooldesk-…dump` est concerné — donc jamais un `.partial`, et uniquement un dump déjà validé par `pg_restore --list`. Il est revalidé juste avant l'envoi.
+2. Il est chiffré dans un dossier temporaire du conteneur (`/tmp`, jamais dans `storage/db-backups`) au format **OpenPGP standard (RFC 4880)**, avec `gpg` : AES-256, intégrité MDC, phrase secrète `DB_BACKUP_EMAIL_PASSPHRASE`. La copie chiffrée est vérifiée (déchiffrement → même SHA-256 que le dump) avant l'envoi.
+3. Seule la copie chiffrée (`schooldesk-….dump.gpg`) est jointe. Objet : `SchoolDesk — Sauvegarde PostgreSQL — AAAA-MM-JJ`. Le corps indique la date, le nom, la taille, la validation et l'empreinte SHA-256 du dump.
+4. La copie chiffrée temporaire est supprimée après la tentative, qu'elle réussisse ou échoue. Le `.dump` local n'est jamais modifié.
+
+**Configuration** (`.env`, puis `docker compose up -d db-backup`) — le serveur SMTP est le même que pour les codes d'inscription (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`) :
+
+| Variable | Rôle |
+| --- | --- |
+| `DB_BACKUP_EMAIL_ENABLED` | `true` pour activer (désactivé par défaut) |
+| `DB_BACKUP_EMAIL_TO` | destinataire(s), séparés par des virgules |
+| `DB_BACKUP_EMAIL_PASSPHRASE` | phrase secrète de chiffrement, 16 caractères minimum — **secret** |
+| `DB_BACKUP_EMAIL_MAX_MB` | taille maximale de la pièce jointe chiffrée (18 Mo par défaut) |
+| `DB_BACKUP_EMAIL_MAX_ATTEMPTS` | tentatives maximales par sauvegarde (3 par défaut) |
+
+Générez la phrase secrète (par exemple `openssl rand -hex 32`) et **conservez-la hors de la machine** (gestionnaire de mots de passe) : sans elle, les copies reçues sont illisibles ; si elle est perdue, elles sont irrécupérables. Ni la phrase secrète ni le mot de passe SMTP n'apparaissent dans les journaux. L'envoi exige toujours une connexion chiffrée : TLS implicite si `SMTP_SECURE=true`, STARTTLS obligatoire sinon.
+
+**Une seule copie par sauvegarde, sans boucle d'envoi** : un marqueur caché est posé à côté du dump (`.schooldesk-….dump.email-sent`) ; les redémarrages et vérifications suivantes ne renvoient donc rien. Seul le dump le plus récent est envoyé : en activant la fonction, les anciens dumps ne partent pas en rafale. Une sauvegarde manuelle (`db-backup.sh`) devient le dump le plus récent et est envoyée à la vérification suivante.
+
+**En cas d'échec SMTP** (serveur injoignable, identifiants refusés…) : le dump local reste intact et l'échec est journalisé. Un nouvel essai a lieu à la vérification suivante (une heure plus tard par défaut), jusqu'à `DB_BACKUP_EMAIL_MAX_ATTEMPTS` tentatives (compteur `.….email-attempts`). Ensuite, cette sauvegarde n'est plus retentée, et la prochaine sauvegarde quotidienne sera envoyée normalement. Pour surveiller : `docker compose logs db-backup | grep db-backup-email`. L'état `healthy` du service ne dépend que de la présence d'un dump récent, pas de l'envoi.
+
+**Limite de taille** : si la copie chiffrée dépasse `DB_BACKUP_EMAIL_MAX_MB`, rien n'est envoyé et le journal l'indique clairement (marqueur `.….email-skipped`, pas de nouvel essai). Le dump local est conservé : copiez-le alors hors machine par un autre moyen. Gmail refuse les messages de plus de 25 Mo, et le base64 ajoute environ 33 % : 18 Mo est le maximum raisonnable avec Gmail.
+
+**Déchiffrer puis restaurer une copie reçue** (sur n'importe quel poste avec GnuPG, par exemple `apt install gnupg` ou Gpg4win) :
+
+```bash
+gpg --decrypt --output schooldesk-AAAA-MM-JJ_HH-MM-SS.dump schooldesk-AAAA-MM-JJ_HH-MM-SS.dump.gpg   # demande la phrase secrète
+sha256sum schooldesk-AAAA-MM-JJ_HH-MM-SS.dump    # doit correspondre à l'empreinte indiquée dans l'e-mail
+```
+
+Le `.dump` obtenu est identique au dump d'origine : vérifiez-le et restaurez-le exactement comme ci-dessus (`pg_restore --list`, puis restauration sur une base de test).
+
+Les marqueurs cachés sont nettoyés automatiquement quand la rotation supprime leur dump. Ils n'interviennent ni dans la rotation, ni dans le healthcheck.
 
 ## 5. Mise à jour de SchoolDesk
 

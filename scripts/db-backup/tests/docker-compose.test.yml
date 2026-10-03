@@ -1,0 +1,105 @@
+# Banc de test JETABLE du service db-backup (copie e-mail chiffrée) — totalement séparé de la pile
+# docker-compose.yml : projet Compose distinct, aucun port publié, volumes de test supprimés à la
+# fin. Faux serveur SMTP local (Mailpit) : aucun e-mail réel n'est envoyé. Tous les identifiants
+# ci-dessous sont des valeurs de test sans valeur réelle. Lancement : sh scripts/db-backup/tests/run-tests.sh
+name: schooldesk-backup-test
+
+x-backup-env: &backup-env
+  PGHOST: postgres
+  PGPORT: 5432
+  PGUSER: schooldesk_test
+  PGPASSWORD: schooldesk_test
+  PGDATABASE: schooldesk_test
+  DB_BACKUP_DIR: /backups
+  DB_BACKUP_RETENTION: 14
+  DB_BACKUP_CHECK_INTERVAL: 3600
+  TZ: UTC
+  DB_BACKUP_EMAIL_ENABLED: "false"
+  DB_BACKUP_EMAIL_TO: backup-destinataire@example.test
+  DB_BACKUP_EMAIL_PASSPHRASE: test-passphrase-ne-pas-utiliser-0123456789
+  DB_BACKUP_EMAIL_MAX_MB: 18
+  DB_BACKUP_EMAIL_MAX_ATTEMPTS: 3
+  SMTP_HOST: mailpit
+  SMTP_PORT: 1025
+  SMTP_SECURE: "false"
+  SMTP_USER: backup-user
+  SMTP_PASS: test-smtp-password-123
+  SMTP_FROM: SchoolDesk Test <expediteur@example.test>
+  # Le certificat auto-signé du faux SMTP est reconnu uniquement dans ce banc de test.
+  CURL_CA_BUNDLE: /certs/cert.pem
+
+services:
+  certs:
+    image: alpine:3.20
+    command: sh -c "apk add --no-cache -q openssl && openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj /CN=mailpit -addext subjectAltName=DNS:mailpit,DNS:mailpit-tls -keyout /certs/key.pem -out /certs/cert.pem 2>/dev/null && chmod 644 /certs/*.pem"
+    volumes: [certs:/certs]
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: schooldesk_test
+      POSTGRES_PASSWORD: schooldesk_test
+      POSTGRES_DB: schooldesk_test
+    tmpfs: [/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U schooldesk_test -d schooldesk_test"]
+      interval: 2s
+      retries: 30
+
+  # STARTTLS obligatoire + authentification réelle (SMTP_SECURE=false).
+  mailpit:
+    image: axllent/mailpit:latest
+    environment:
+      MP_SMTP_TLS_CERT: /certs/cert.pem
+      MP_SMTP_TLS_KEY: /certs/key.pem
+      MP_SMTP_REQUIRE_STARTTLS: "true"
+      MP_SMTP_AUTH: "backup-user:test-smtp-password-123"
+    volumes: [certs:/certs:ro]
+    depends_on: { certs: { condition: service_completed_successfully } }
+
+  # TLS implicite (SMTP_SECURE=true).
+  mailpit-tls:
+    image: axllent/mailpit:latest
+    environment:
+      MP_SMTP_TLS_CERT: /certs/cert.pem
+      MP_SMTP_TLS_KEY: /certs/key.pem
+      MP_SMTP_REQUIRE_TLS: "true"
+      MP_SMTP_AUTH: "backup-user:test-smtp-password-123"
+    volumes: [certs:/certs:ro]
+    depends_on: { certs: { condition: service_completed_successfully } }
+
+  # Service testé pas à pas (scripts lancés par docker compose exec).
+  db-backup:
+    build:
+      context: ../../..
+      dockerfile: scripts/db-backup/Dockerfile
+    image: schooldesk-backup-test-db-backup
+    command: ["sleep", "infinity"]
+    environment: *backup-env
+    volumes: [backups:/backups, certs:/certs:ro]
+    depends_on:
+      postgres: { condition: service_healthy }
+      mailpit: { condition: service_started }
+      mailpit-tls: { condition: service_started }
+
+  # Même image avec sa vraie commande (boucle), sur un dossier vierge : test de la boucle et des redémarrages.
+  db-backup-scheduler:
+    image: schooldesk-backup-test-db-backup
+    environment:
+      <<: *backup-env
+      DB_BACKUP_EMAIL_ENABLED: "true"
+      DB_BACKUP_CHECK_INTERVAL: 2
+    volumes: [backups-scheduler:/backups, certs:/certs:ro]
+    profiles: [scheduler]
+
+  # Outils de vérification (déchiffrement, lecture de l'API Mailpit) — lecture seule sur les sauvegardes.
+  tester:
+    image: schooldesk-backup-test-db-backup
+    command: ["sleep", "infinity"]
+    volumes: [backups:/backups:ro, certs:/certs:ro]
+    depends_on: [db-backup]
+
+volumes:
+  certs:
+  backups:
+  backups-scheduler:
