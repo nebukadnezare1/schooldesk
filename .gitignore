@@ -5,6 +5,10 @@ storage/documents/*
 storage/backups/*
 !storage/documents/.gitkeep
 !storage/backups/.gitkeep
+# Sauvegardes complètes PostgreSQL (service db-backup) — ne jamais commiter.
+storage/db-backups/
+*.dump
+*.dump.partial
 
 .claude/
 npm-debug.log*

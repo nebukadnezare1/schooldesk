@@ -58,7 +58,7 @@ Le premier démarrage télécharge les images, compile le frontend et le backend
 docker compose ps
 ```
 
-Les trois services (`postgres`, `backend`, `frontend`) doivent afficher `(healthy)` dans la colonne d'état. S'ils restent bloqués sur `starting` ou passent en `unhealthy`, consultez les journaux d'un service précis avec `docker compose logs backend` (ou `postgres`/`frontend`).
+Les quatre services (`postgres`, `backend`, `frontend`, `db-backup`) doivent afficher `(healthy)` dans la colonne d'état. S'ils restent bloqués sur `starting` ou passent en `unhealthy`, consultez les journaux d'un service précis avec `docker compose logs backend` (ou `postgres`/`frontend`).
 
 **Accès** : `http://localhost:8080` (ou l'IP de la machine qui héberge Docker, si vous y accédez depuis un autre appareil du même réseau). C'est le seul port qui a besoin d'être joignable — le frontend proxifie lui-même les appels `/api/...` vers le backend, en interne.
 
@@ -109,18 +109,53 @@ docker compose down    # arrête les conteneurs, les données restent intactes
 docker compose up -d --build
 ```
 
-> ⚠️ **Ne jamais utiliser `docker compose down -v`**, sauf si vous voulez réellement et irréversiblement supprimer toutes les données (élèves, paiements, tout le reste). Le drapeau `-v` supprime aussi les volumes nommés (`postgres_data`, ainsi que `documents_data` et `backups_data`, qui stockent respectivement les documents et les sauvegardes de sécurité générées par l'application).
+> ⚠️ **Ne jamais utiliser `docker compose down -v`**, sauf si vous voulez réellement et irréversiblement supprimer toutes les données (élèves, paiements, tout le reste). Le drapeau `-v` supprime aussi les volumes nommés (`postgres_data`, ainsi que `documents_data` et `backups_data`, qui stockent respectivement les documents et les sauvegardes de sécurité générées par l'application). Le dossier `storage/db-backups/` (sauvegardes complètes, voir ci-dessous) est un dossier de l'hôte, pas un volume : `down -v` ne le supprime pas.
 
 **Sauvegardez régulièrement**, en plus de la persistance du volume (qui ne protège pas d'une erreur humaine, d'un disque défaillant ou d'une suppression accidentelle) :
 
 - **Depuis l'application** : chaque école peut exporter ses propres données en JSON depuis **Paramètres → Sauvegarder mes données**, et les réimporter en cas de besoin depuis le même écran.
-- **Au niveau de la base entière** (recommandé en plus, en particulier si plusieurs écoles partagent le même déploiement) : un `pg_dump` régulier du service `postgres`, par exemple :
+- **Au niveau de la base entière (automatique)** : le service `db-backup` (démarré avec le reste par `docker compose up -d`) fait une sauvegarde `pg_dump` complète de la base — toutes les écoles — **une fois par jour** et garde les **14 plus récentes**. Détails ci-dessous.
 
-  ```bash
-  docker compose exec postgres pg_dump -U <POSTGRES_USER> -d <POSTGRES_DB> > sauvegarde.sql
-  ```
+### Sauvegarde automatique de la base complète (service `db-backup`)
 
-  À planifier (cron, tâche planifiée de votre NAS, etc.) et à stocker **hors** de la machine qui héberge Docker.
+- **Emplacement** : `./storage/db-backups/` dans le dossier du projet (modifiable avec `DB_BACKUP_HOST_DIR` dans `.env`). Ce dossier est exclu de Git.
+- **Fichiers** : `schooldesk-AAAA-MM-JJ_HH-MM-SS.dump` (format custom `pg_dump`, horodatage dans le fuseau `DB_BACKUP_TZ`, UTC par défaut).
+- **Fréquence** : le service vérifie toutes les heures (`DB_BACKUP_CHECK_INTERVAL`) si la sauvegarde du jour existe, et la crée sinon. Elle est donc faite dès le démarrage, puis peu après minuit ; les redémarrages ne créent pas de doublons dans la journée.
+- **Rétention** : les `DB_BACKUP_RETENTION` (14 par défaut) dumps les plus récents sont gardés, les plus anciens supprimés automatiquement. Seuls les fichiers au nom exact `schooldesk-…dump` sont concernés : une copie renommée par vos soins n'est jamais supprimée. Les sauvegardes manuelles comptent dans les 14.
+- **Atomicité** : le dump est d'abord écrit dans un fichier temporaire caché (`.schooldesk-….dump.partial`), vérifié avec `pg_restore --list`, puis seulement renommé. Un fichier `schooldesk-….dump` est donc toujours complet.
+- **État** : `docker compose ps` affiche `db-backup` en `(healthy)` tant qu'une sauvegarde de moins de 26 h existe. Journal : `docker compose logs db-backup`.
+
+**Déclencher une sauvegarde tout de suite** :
+
+```bash
+docker compose exec db-backup db-backup.sh
+```
+
+**Vérifier qu'un dump est lisible** :
+
+```bash
+docker compose exec db-backup sh -c 'ls -l /backups && pg_restore --list /backups/schooldesk-AAAA-MM-JJ_HH-MM-SS.dump | head'
+```
+
+**Restaurer un dump sur une base de TEST** (jamais sur la base de production en service) — PostgreSQL jetable, sans réseau :
+
+```bash
+docker run -d --name sd-restore-test --network none \
+  -e POSTGRES_PASSWORD=test-only -e POSTGRES_DB=restore_test \
+  -v "$(pwd)/storage/db-backups:/dumps:ro" postgres:16-alpine
+# attendre quelques secondes que la base démarre, puis :
+docker exec sd-restore-test pg_restore -U postgres -d restore_test --no-owner --exit-on-error \
+  /dumps/schooldesk-AAAA-MM-JJ_HH-MM-SS.dump
+docker exec sd-restore-test psql -U postgres -d restore_test -c 'SELECT count(*) FROM "School";'
+# une fois vérifié :
+docker rm -f sd-restore-test
+```
+
+(Sous Windows avec Git Bash, préfixer les commandes `docker` par `MSYS_NO_PATHCONV=1` et utiliser `$(pwd -W)` à la place de `$(pwd)`.)
+
+Une restauration réelle de production (en cas de sinistre) consiste à arrêter `backend`, recréer une base vide puis y lancer le même `pg_restore` — à ne faire qu'en connaissance de cause, après avoir testé le dump comme ci-dessus.
+
+> Ces sauvegardes restent sur la même machine que la base : copiez régulièrement `storage/db-backups/` **hors** de cette machine (autre disque, autre serveur, stockage externe) pour être protégé d'une panne matérielle.
 
 ## 5. Mise à jour de SchoolDesk
 
