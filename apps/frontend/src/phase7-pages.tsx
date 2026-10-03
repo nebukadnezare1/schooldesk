@@ -393,13 +393,21 @@ const cashSortValue = (entry: CashEntry, key: CashSortKey): string | number => {
         case 'type': return entry.type === 'INCOME' ? 'Entrée' : 'Sortie';
         case 'description': return entry.description;
         case 'linked': return entry.linkedName ?? entry.className ?? '';
-        case 'feePeriod': return entry.feePeriod ?? '';
+        case 'feePeriod': return cashPeriodLabel(entry);
         case 'amount': return Number(entry.amount);
         case 'status': return entry.cancelled ? 'Annulé' : 'Actif';
     }
 };
 
 const monthKey = (dateStr: string) => dateStr.slice(0, 7);
+// Types de mouvements réellement écrits en caisse (CashTransaction.sourceType) — les avances n'y figurent pas.
+const cashSourceLabels: Record<string, string> = { PAYMENT: 'Paiements élèves', PAYROLL_PAYMENT: 'Salaires', EXPENSE: 'Dépenses' };
+// Période du frais (paiement élève) ou du salaire lié (Payroll.month) — jamais déduite de la date du mouvement.
+function cashPeriodLabel(entry: CashEntry) {
+    if (entry.feePeriod) return entry.feePeriod;
+    if (entry.payrollMonth) return `Salaire · ${monthLabel(entry.payrollMonth)}`;
+    return '';
+}
 function currentLocalMonth() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -415,21 +423,36 @@ export const CashPage = ({ cash, classes, currency }: { cash: CashEntry[]; class
     const [classFilter, setClassFilter] = useState('');
     const [typeFilter, setTypeFilter] = useState('');
     const [studentFilter, setStudentFilter] = useState('');
+    const [sourceFilter, setSourceFilter] = useState('');
+    const [employeeFilter, setEmployeeFilter] = useState('');
     const [search, setSearch] = useState('');
-    const hasFilter = Boolean(monthFilter || classFilter || typeFilter || studentFilter || search);
+    const hasFilter = Boolean(monthFilter || classFilter || typeFilter || studentFilter || sourceFilter || employeeFilter || search);
+    // Filtres de personne selon le type : classe + élève (tous / paiements élèves), employé (salaires), aucun (dépenses).
+    const showStudentFilters = sourceFilter === '' || sourceFilter === 'PAYMENT';
+    const showEmployeeFilter = sourceFilter === 'PAYROLL_PAYMENT';
+    const changeSource = (value: string) => {
+        setSourceFilter(value);
+        if (!(value === '' || value === 'PAYMENT')) { setClassFilter(''); setStudentFilter(''); }
+        if (value !== 'PAYROLL_PAYMENT') setEmployeeFilter('');
+    };
 
     const months = Array.from(new Set(cash.map((item) => monthKey(item.occurredAt)))).sort().reverse();
     const students = Array.from(new Map(cash.filter((item) => item.studentId).map((item) => [item.studentId as string, item.linkedName as string])).entries())
         .map(([id, name]) => ({ id, name }))
         .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    const cashEmployees = Array.from(new Map(cash.filter((item) => item.employeeId).map((item) => [item.employeeId as string, item.linkedName as string])).entries())
+        .map(([id, name]) => ({ id, name }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
     const filtered = cash.filter((item) => {
+        if (sourceFilter && item.sourceType !== sourceFilter) return false;
+        if (employeeFilter && item.employeeId !== employeeFilter) return false;
         if (monthFilter && monthKey(item.occurredAt) !== monthFilter) return false;
         if (classFilter && item.classId !== classFilter) return false;
         if (typeFilter && item.type !== typeFilter) return false;
         if (studentFilter && item.studentId !== studentFilter) return false;
         if (search) {
             const needle = search.trim().toLowerCase();
-            if (!`${item.description} ${item.linkedName ?? ''} ${item.feePeriod ?? ''}`.toLowerCase().includes(needle)) return false;
+            if (!`${item.description} ${item.linkedName ?? ''} ${item.className ?? ''} ${cashPeriodLabel(item)}`.toLowerCase().includes(needle)) return false;
         }
         return true;
     });
@@ -449,19 +472,27 @@ export const CashPage = ({ cash, classes, currency }: { cash: CashEntry[]; class
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-[#6a8d72]">{filtered.length} mouvement(s){hasFilter ? ` sur ${cash.length}` : ''} · les lignes annulées restent visibles mais sont exclues des totaux · clic sur un titre pour trier</p>
                 <div className="flex flex-wrap items-center gap-2">
-                    <input className="rounded-lg border border-[#cbdacb] bg-white px-3 py-2 text-sm" onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher (élève, employé, description)" type="search" value={search} />
+                    <input className="rounded-lg border border-[#cbdacb] bg-white px-3 py-2 text-sm" onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher (élève, employé, n° de reçu…)" type="search" value={search} />
                     <select className="rounded-lg border border-[#cbdacb] bg-white px-3 py-2 text-sm" onChange={(event) => setMonthFilter(event.target.value)} value={monthFilter}>
                         <option value="">Tous les mois</option>
                         {months.map((key) => <option key={key} value={key}>{monthLabel(key)}</option>)}
                     </select>
-                    <select className="rounded-lg border border-[#cbdacb] bg-white px-3 py-2 text-sm" onChange={(event) => setClassFilter(event.target.value)} value={classFilter}>
+                    <select aria-label="Type de mouvement" className="rounded-lg border border-[#cbdacb] bg-white px-3 py-2 text-sm" onChange={(event) => changeSource(event.target.value)} value={sourceFilter}>
+                        <option value="">Tous les mouvements</option>
+                        {Object.entries(cashSourceLabels).map(([source, label]) => <option key={source} value={source}>{label}</option>)}
+                    </select>
+                    {showStudentFilters && <select aria-label="Filtrer par classe" className="rounded-lg border border-[#cbdacb] bg-white px-3 py-2 text-sm" onChange={(event) => setClassFilter(event.target.value)} value={classFilter}>
                         <option value="">Toutes les classes</option>
                         {classes.map((schoolClass) => <option key={schoolClass.id} value={schoolClass.id}>{schoolClass.name}</option>)}
-                    </select>
-                    <select className="rounded-lg border border-[#cbdacb] bg-white px-3 py-2 text-sm" onChange={(event) => setStudentFilter(event.target.value)} value={studentFilter}>
+                    </select>}
+                    {showStudentFilters && <select aria-label="Filtrer par élève" className="rounded-lg border border-[#cbdacb] bg-white px-3 py-2 text-sm" onChange={(event) => setStudentFilter(event.target.value)} value={studentFilter}>
                         <option value="">Tous les élèves</option>
                         {students.map((student) => <option key={student.id} value={student.id}>{student.name}</option>)}
-                    </select>
+                    </select>}
+                    {showEmployeeFilter && <select aria-label="Filtrer par employé" className="rounded-lg border border-[#cbdacb] bg-white px-3 py-2 text-sm" onChange={(event) => setEmployeeFilter(event.target.value)} value={employeeFilter}>
+                        <option value="">Tous les employés</option>
+                        {cashEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}
+                    </select>}
                     <select className="rounded-lg border border-[#cbdacb] bg-white px-3 py-2 text-sm" onChange={(event) => setTypeFilter(event.target.value)} value={typeFilter}>
                         <option value="">Entrées et sorties</option>
                         <option value="INCOME">Entrées</option>
@@ -486,7 +517,7 @@ export const CashPage = ({ cash, classes, currency }: { cash: CashEntry[]; class
                             <td className="py-2 pr-4">{item.type === 'EXPENSE' ? 'Sortie' : 'Entrée'}</td>
                             <td className={`py-2 pr-4 ${item.cancelled ? 'line-through' : ''}`}>{item.description}</td>
                             <td className="py-2 pr-4 text-[#6a8d72]">{item.linkedName ?? '—'}{item.className ? <span> · {item.className}</span> : ''}</td>
-                            <td className="py-2 pr-4 text-[#6a8d72]">{item.feePeriod ?? '—'}</td>
+                            <td className="py-2 pr-4 text-[#6a8d72]">{cashPeriodLabel(item) || '—'}</td>
                             <td className={`py-2 pr-4 text-right font-medium ${item.type === 'EXPENSE' ? 'text-[#a65d36]' : 'text-[#356743]'}`}>{item.type === 'EXPENSE' ? '-' : '+'}{formatCurrency(item.amount, currency)}</td>
                             <td className="py-2 pr-4">{item.cancelled ? <StatusBadge colorClass="bg-[#f4e6e1] text-[#a3372f]" label="Annulé" /> : <StatusBadge colorClass="bg-[#e5f1e5] text-[#356743]" label="Actif" />}</td>
                         </tr>)}

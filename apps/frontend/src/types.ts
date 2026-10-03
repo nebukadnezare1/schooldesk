@@ -210,6 +210,8 @@ export type CashEntry = {
     classId: string | null;
     className: string | null;
     feePeriod: string | null;
+    employeeId: string | null;
+    payrollMonth: string | null;
 };
 
 export type Settings = Record<string, string>;

@@ -263,7 +263,7 @@ export const createOperationsRouter = (prisma: PrismaClient) => {
             }) : [],
             payrollPaymentIds.length ? request.db!.payrollPayment.findMany({
                 where: { id: { in: payrollPaymentIds } },
-                select: { id: true, payroll: { select: { employee: { select: { firstName: true, lastName: true } } } } }
+                select: { id: true, payroll: { select: { month: true, employee: { select: { id: true, firstName: true, lastName: true } } } } }
             }) : []
         ]);
         const paymentInfo = new Map(payments.map((payment) => [payment.id, {
@@ -273,7 +273,11 @@ export const createOperationsRouter = (prisma: PrismaClient) => {
             className: payment.student.enrollments[0]?.schoolClass.name ?? null,
             feePeriod: Array.from(new Set(payment.allocations.map((allocation) => `${allocation.studentFee.feeType.name} · ${allocation.studentFee.period}`))).join(', ') || null
         }]));
-        const payrollInfo = new Map(payrollPayments.map((item) => [item.id, { linkedName: `${item.payroll.employee.firstName} ${item.payroll.employee.lastName}` }]));
+        const payrollInfo = new Map(payrollPayments.map((item) => [item.id, {
+            linkedName: `${item.payroll.employee.firstName} ${item.payroll.employee.lastName}`,
+            employeeId: item.payroll.employee.id,
+            payrollMonth: item.payroll.month
+        }]));
 
         const cancelledIds = new Set([
             ...cancelledPayments.map((item) => item.id),
@@ -291,7 +295,9 @@ export const createOperationsRouter = (prisma: PrismaClient) => {
             studentId: paymentInfo.get(item.sourceId)?.studentId ?? null,
             classId: paymentInfo.get(item.sourceId)?.classId ?? null,
             className: paymentInfo.get(item.sourceId)?.className ?? null,
-            feePeriod: paymentInfo.get(item.sourceId)?.feePeriod ?? null
+            feePeriod: paymentInfo.get(item.sourceId)?.feePeriod ?? null,
+            employeeId: payrollInfo.get(item.sourceId)?.employeeId ?? null,
+            payrollMonth: payrollInfo.get(item.sourceId)?.payrollMonth ?? null
         }));
         return response.json({ transactions: enriched, totals: { income, expenses, balance: income.minus(expenses) } });
     });
