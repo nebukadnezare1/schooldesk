@@ -4,3 +4,4 @@ dist
 .env
 storage/backups
 storage/documents
+storage/db-backups
